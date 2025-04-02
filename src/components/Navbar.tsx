@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Shield } from "lucide-react";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,6 +15,7 @@ const Navbar = () => {
     <nav className="bg-white shadow-sm py-4 px-6 fixed w-full top-0 z-10">
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center space-x-2">
+          <Shield className="h-6 w-6 text-medivault-blue" />
           <span className="text-medivault-blue font-bold text-2xl">MediVault</span>
         </Link>
 
