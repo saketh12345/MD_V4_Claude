@@ -18,7 +18,7 @@ export const getUsers = (): Record<string, AuthUser> => {
 };
 
 // Save users to localStorage
-const saveUsers = (users: Record<string, AuthUser>) => {
+export const saveUsers = (users: Record<string, AuthUser>) => {
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
 };
 
@@ -114,4 +114,28 @@ export const getCurrentUser = (): AuthUser | null => {
 // Logout user
 export const logoutUser = (): void => {
   localStorage.removeItem(CURRENT_USER_KEY);
+};
+
+// Update user data
+export const updateUserData = (updatedUser: AuthUser): boolean => {
+  try {
+    const users = getUsers();
+    
+    // Update user in users collection
+    users[updatedUser.phone] = updatedUser;
+    
+    // Save updated users back to localStorage
+    saveUsers(users);
+    
+    // Update current user if this is the current user
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.id === updatedUser.id) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating user data:', error);
+    return false;
+  }
 };

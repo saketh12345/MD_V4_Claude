@@ -1,15 +1,30 @@
 
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { getCurrentUser } from "@/utils/authUtils";
 
 const PatientSettings = () => {
+  const { toast } = useToast();
   const [personalInfo, setPersonalInfo] = useState({
-    fullName: "Jane Doe",
-    phoneNumber: "+1 (555) 123-4567"
+    fullName: "",
+    phoneNumber: ""
   });
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load user data on component mount
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      setPersonalInfo({
+        fullName: currentUser.fullName || "Jane Doe",
+        phoneNumber: currentUser.phone || "+1 (555) 123-4567"
+      });
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPersonalInfo({
@@ -20,8 +35,41 @@ const PatientSettings = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would save the data to the backend here
-    console.log("Saving changes:", personalInfo);
+    setIsLoading(true);
+
+    // Update user in localStorage
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      // Get all users from localStorage
+      const users = JSON.parse(localStorage.getItem('medivault_users') || '{}');
+      
+      // Update the current user's phone number and fullName
+      if (users[currentUser.phone]) {
+        // Create the updated user object
+        const updatedUser = {
+          ...currentUser,
+          phone: personalInfo.phoneNumber,
+          fullName: personalInfo.fullName
+        };
+        
+        // Remove the old phone entry and add the new one
+        delete users[currentUser.phone];
+        users[personalInfo.phoneNumber] = updatedUser;
+        
+        // Save updated users back to localStorage
+        localStorage.setItem('medivault_users', JSON.stringify(users));
+        
+        // Update current user in session
+        localStorage.setItem('medivault_current_user', JSON.stringify(updatedUser));
+        
+        toast({
+          title: "Success",
+          description: "Profile information updated successfully"
+        });
+      }
+    }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -70,8 +118,12 @@ const PatientSettings = () => {
               </div>
 
               <div>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                  Save Changes
+                <Button 
+                  type="submit" 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </form>

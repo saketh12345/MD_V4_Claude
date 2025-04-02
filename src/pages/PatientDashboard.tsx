@@ -4,6 +4,7 @@ import { Eye, Download, Share2, FileText } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 
 // Sample data for reports
 const reportsData = [
@@ -12,32 +13,65 @@ const reportsData = [
     name: "Blood Test Report",
     date: "15/9/2023",
     lab: "HealthLabs",
-    type: "Blood Test"
+    type: "Blood Test",
+    fileUrl: "#" // In a real app, this would be the file URL
   },
   {
     id: 2,
     name: "Chest X-Ray",
     date: "22/8/2023",
     lab: "CityRadiology",
-    type: "Radiology"
+    type: "Radiology",
+    fileUrl: "#"
   },
   {
     id: 3,
     name: "Lipid Profile",
     date: "10/7/2023",
     lab: "PremiumDiagnostics",
-    type: "Blood Test"
+    type: "Blood Test",
+    fileUrl: "#"
   },
   {
     id: 4,
     name: "ECG Report",
     date: "5/6/2023",
     lab: "HeartCare Center",
-    type: "Cardiology"
+    type: "Cardiology",
+    fileUrl: "#"
   }
 ];
 
 const PatientDashboard = () => {
+  const { toast } = useToast();
+
+  // Handle view report
+  const handleViewReport = (report: typeof reportsData[0]) => {
+    // In a real app, this would open the report for viewing
+    toast({
+      title: "Viewing Report",
+      description: `Opening ${report.name}`
+    });
+  };
+
+  // Handle download report
+  const handleDownloadReport = (report: typeof reportsData[0]) => {
+    // In a real app, this would initiate a download
+    toast({
+      title: "Downloading Report",
+      description: `Downloading ${report.name}`
+    });
+  };
+
+  // Handle share report
+  const handleShareReport = (report: typeof reportsData[0]) => {
+    // In a real app, this would open sharing options
+    toast({
+      title: "Share Report",
+      description: `Sharing options for ${report.name}`
+    });
+  };
+
   return (
     <DashboardLayout 
       title="Good Morning, John Doe" 
@@ -89,13 +123,31 @@ const PatientDashboard = () => {
                       <td className="py-4 px-4">{report.type}</td>
                       <td className="py-4 px-4">
                         <div className="flex space-x-2">
-                          <Button variant="ghost" size="sm" className="p-0 w-8 h-8" title="View">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="p-0 w-8 h-8" 
+                            title="View"
+                            onClick={() => handleViewReport(report)}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="p-0 w-8 h-8" title="Download">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="p-0 w-8 h-8" 
+                            title="Download"
+                            onClick={() => handleDownloadReport(report)}
+                          >
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" className="p-0 w-8 h-8" title="Share">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="p-0 w-8 h-8" 
+                            title="Share"
+                            onClick={() => handleShareReport(report)}
+                          >
                             <Share2 className="h-4 w-4" />
                           </Button>
                         </div>
