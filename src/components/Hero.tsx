@@ -13,7 +13,7 @@ const Hero = () => {
         <p className="text-xl mb-12 max-w-3xl mx-auto">
           Access, track, and share your medical reports anytime secure & hassle-free health management.
         </p>
-        <Link to="/signup">
+        <Link to="/choose-account">
           <Button 
             size="lg" 
             className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-6 rounded-full text-lg"
