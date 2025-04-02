@@ -5,24 +5,21 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser, updateUserData } from "@/utils/authUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 const DiagnosticSettings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [labInfo, setLabInfo] = useState({
+  const [centerInfo, setCenterInfo] = useState({
     id: "",
-    labName: "",
-    labDirector: "Dr. Jane Smith",
-    email: "info@citydiagnostics.com",
-    phone: "",
-    address: "123 Medical Plaza, Suite 100, New York, NY 10001",
-    description: "Providing accurate and timely diagnostic services since 2005."
+    centerName: "",
+    phoneNumber: ""
   });
   const [isLoading, setIsLoading] = useState(false);
 
+  // Load user data on component mount
   useEffect(() => {
     const checkAuth = async () => {
       const currentUser = await getCurrentUser();
@@ -38,28 +35,47 @@ const DiagnosticSettings = () => {
         return;
       }
       
-      // If not a center, redirect to appropriate dashboard
+      // If not a diagnostic center, redirect to appropriate dashboard
       if (currentUser.userType !== 'center') {
         navigate("/patient-dashboard");
         return;
       }
       
-      setLabInfo({
-        ...labInfo,
+      setCenterInfo({
         id: currentUser.id,
-        labName: currentUser.centerName || "Diagnostic Center",
-        phone: currentUser.phone
+        centerName: currentUser.centerName || "",
+        phoneNumber: currentUser.phone
       });
     };
     
     checkAuth();
-  }, [navigate, toast, labInfo]);
+    
+    // Set up realtime subscription for profile updates
+    const profileSubscription = supabase
+      .channel('profiles-changes')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${centerInfo.id}`
+      }, (payload) => {
+        const profile = payload.new;
+        setCenterInfo({
+          id: profile.id,
+          centerName: profile.center_name || "",
+          phoneNumber: profile.phone
+        });
+      })
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(profileSubscription);
+    };
+  }, [navigate, toast, centerInfo.id]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setLabInfo({
-      ...labInfo,
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCenterInfo({
+      ...centerInfo,
       [e.target.name]: e.target.value
     });
   };
@@ -67,108 +83,70 @@ const DiagnosticSettings = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    // Update user in Supabase
+    const updated = await updateUserData({
+      id: centerInfo.id,
+      centerName: centerInfo.centerName,
+      phone: centerInfo.phoneNumber,
+      userType: 'center'
+    });
     
-    try {
-      // Update center profile in Supabase
-      const updated = await updateUserData({
-        id: labInfo.id,
-        centerName: labInfo.labName,
-        phone: labInfo.phone,
-        userType: 'center'
+    if (updated) {
+      toast({
+        title: "Success",
+        description: "Center information updated successfully"
       });
-      
-      if (updated) {
-        toast({
-          title: "Success",
-          description: "Lab information updated successfully"
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to update lab information",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error("Error updating lab info:", error);
+    } else {
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "Failed to update center information",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
   };
 
   return (
     <DashboardLayout title="Settings">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="my-6">
-          <Button className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white">
-            Lab Profile
+          <Button className="w-full md:w-auto bg-white text-gray-800 border border-gray-200 hover:bg-gray-50">
+            Profile & Account
           </Button>
         </div>
 
         <Card>
           <CardContent className="p-6">
             <div className="mb-6">
-              <h2 className="text-xl font-semibold">Lab Information</h2>
-              <p className="text-gray-600">
-                Update your diagnostic center's details and contact information
-              </p>
+              <h2 className="text-xl font-semibold">Center Information</h2>
+              <p className="text-gray-600">Update your center details and contact information</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-4">
                 <div>
-                  <label htmlFor="labName" className="block text-sm font-medium mb-1">
-                    Lab Name
+                  <label htmlFor="centerName" className="block text-sm font-medium mb-1">
+                    Center Name
                   </label>
                   <Input
-                    id="labName"
-                    name="labName"
-                    value={labInfo.labName}
+                    id="centerName"
+                    name="centerName"
+                    value={centerInfo.centerName}
                     onChange={handleChange}
                     className="w-full"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="labDirector" className="block text-sm font-medium mb-1">
-                    Lab Director
-                  </label>
-                  <Input
-                    id="labDirector"
-                    name="labDirector"
-                    value={labInfo.labDirector}
-                    onChange={handleChange}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium mb-1">
-                    Email Address
-                  </label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={labInfo.email}
-                    onChange={handleChange}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium mb-1">
+                  <label htmlFor="phoneNumber" className="block text-sm font-medium mb-1">
                     Phone Number
                   </label>
                   <Input
-                    id="phone"
-                    name="phone"
-                    value={labInfo.phone}
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    value={centerInfo.phoneNumber}
                     onChange={handleChange}
                     className="w-full"
                   />
@@ -176,33 +154,6 @@ const DiagnosticSettings = () => {
               </div>
 
               <div>
-                <label htmlFor="address" className="block text-sm font-medium mb-1">
-                  Address
-                </label>
-                <Input
-                  id="address"
-                  name="address"
-                  value={labInfo.address}
-                  onChange={handleChange}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium mb-1">
-                  Lab Description
-                </label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={labInfo.description}
-                  onChange={handleChange}
-                  rows={4}
-                  className="w-full resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end">
                 <Button 
                   type="submit" 
                   className="bg-blue-600 hover:bg-blue-700"

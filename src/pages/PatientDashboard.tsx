@@ -8,6 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/utils/authUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
+
+type ReportRow = Database['public']['Tables']['reports']['Row'];
 
 interface Report {
   id: string;
@@ -89,7 +92,7 @@ const PatientDashboard = () => {
       }
       
       if (data) {
-        const formattedReports = data.map(report => ({
+        const formattedReports = data.map((report: ReportRow) => ({
           id: report.id,
           name: report.name,
           date: new Date(report.date).toLocaleDateString(),

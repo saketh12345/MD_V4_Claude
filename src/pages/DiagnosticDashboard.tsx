@@ -1,26 +1,36 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Upload, FileText, File, ArrowRight } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/utils/authUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
+
+type ReportRow = Database['public']['Tables']['reports']['Row'];
 
 const DiagnosticDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [reports, setReports] = useState<ReportRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [centerId, setCenterId] = useState<string | null>(null);
+  const [centerName, setCenterName] = useState<string>("");
+  
+  // Form state
   const [reportForm, setReportForm] = useState({
-    reportType: "",
-    reportName: "",
-    patientPhone: "",
+    patient_phone: "",
+    name: "",
+    type: "Blood Test",
     file: null as File | null
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [centerName, setCenterName] = useState("");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -37,247 +47,316 @@ const DiagnosticDashboard = () => {
         return;
       }
       
-      // If not a center, redirect to appropriate dashboard
+      // If not a diagnostic center, redirect to appropriate dashboard
       if (currentUser.userType !== 'center') {
         navigate("/patient-dashboard");
         return;
       }
       
-      setCenterName(currentUser.centerName || "Diagnostic Center");
+      setCenterId(currentUser.id);
+      setCenterName(currentUser.centerName || "Your Center");
+      fetchReports(currentUser.id);
     };
     
     checkAuth();
   }, [navigate, toast]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setReportForm({
-        ...reportForm,
-        file: e.target.files[0]
+  useEffect(() => {
+    if (!centerId) return;
+    
+    // Set up realtime subscription for reports
+    const reportsSubscription = supabase
+      .channel('center-reports-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'reports',
+        filter: `lab=eq.${centerName}`
+      }, () => {
+        // Refetch reports when a new one is added
+        fetchReports(centerId);
+      })
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(reportsSubscription);
+    };
+  }, [centerId, centerName]);
+
+  const fetchReports = async (centerId: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('reports')
+        .select('*')
+        .eq('lab', centerName)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        setReports(data);
+      }
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load reports",
+        variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setReportForm({
-      ...reportForm,
-      [e.target.name]: e.target.value
-    });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setReportForm({ ...reportForm, [name]: value });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setReportForm({ ...reportForm, file: e.target.files[0] });
+    }
+  };
+
+  const handleTypeChange = (value: string) => {
+    setReportForm({ ...reportForm, type: value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!reportForm.reportType || !reportForm.patientPhone || !reportForm.reportName) {
+    if (!reportForm.patient_phone || !reportForm.name || !reportForm.type) {
       toast({
-        title: "Error",
-        description: "Please fill all required fields",
+        title: "Missing Fields",
+        description: "Please fill out all required fields",
         variant: "destructive"
       });
       return;
     }
     
-    setIsLoading(true);
+    setUploading(true);
     
     try {
-      // 1. Find patient by phone number
-      const { data: profiles, error: profileError } = await supabase
+      // 1. Get patient ID from phone number
+      const { data: patients, error: patientError } = await supabase
         .from('profiles')
-        .select('id, user_type')
-        .eq('phone', reportForm.patientPhone)
+        .select('id')
+        .eq('phone', reportForm.patient_phone)
         .eq('user_type', 'patient')
-        .limit(1);
-      
-      if (profileError) throw profileError;
-      
-      if (!profiles || profiles.length === 0) {
+        .single();
+        
+      if (patientError || !patients) {
         toast({
           title: "Error",
-          description: "No patient found with this phone number",
+          description: "Patient not found with the given phone number",
           variant: "destructive"
         });
-        setIsLoading(false);
+        setUploading(false);
         return;
       }
       
-      const patientId = profiles[0].id;
-      
-      // 2. Upload file if available
+      // 2. Upload file if exists
       let fileUrl = null;
       if (reportForm.file) {
-        // Create a storage bucket if it doesn't exist
-        const { data: bucketData, error: bucketError } = await supabase
-          .storage
-          .getBucket('reports');
-          
-        if (bucketError && bucketError.message.includes('The resource was not found')) {
-          await supabase
-            .storage
-            .createBucket('reports', {
-              public: false,
-              fileSizeLimit: 10485760, // 10MB
-            });
-        }
-        
-        // Upload file
-        const fileExt = reportForm.file.name.split('.').pop();
-        const fileName = `${patientId}/${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError, data: uploadData } = await supabase
-          .storage
+        const fileName = `${Date.now()}-${reportForm.file.name}`;
+        const { data: fileData, error: fileError } = await supabase.storage
           .from('reports')
           .upload(fileName, reportForm.file);
           
-        if (uploadError) throw uploadError;
-        
-        // Get public URL
-        const { data: urlData } = await supabase
-          .storage
-          .from('reports')
-          .createSignedUrl(fileName, 60 * 60 * 24 * 7); // 7 days validity
-          
-        if (urlData) {
-          fileUrl = urlData.signedUrl;
+        if (fileError) {
+          console.error("File upload error:", fileError);
+          // Continue without file
+        } else if (fileData) {
+          const { data: urlData } = await supabase.storage
+            .from('reports')
+            .getPublicUrl(fileName);
+            
+          fileUrl = urlData.publicUrl;
         }
       }
       
-      // 3. Insert report record
-      const { error: insertError } = await supabase
+      // 3. Create report record
+      const { error: reportError } = await supabase
         .from('reports')
         .insert({
-          name: reportForm.reportName,
-          type: reportForm.reportType,
+          name: reportForm.name,
+          type: reportForm.type,
           lab: centerName,
-          patient_id: patientId,
+          patient_id: patients.id,
           file_url: fileUrl
         });
         
-      if (insertError) throw insertError;
+      if (reportError) {
+        throw reportError;
+      }
       
-      // Success
+      // 4. Reset form and show success message
+      setReportForm({
+        patient_phone: "",
+        name: "",
+        type: "Blood Test",
+        file: null
+      });
+      
       toast({
         title: "Success",
         description: "Report uploaded successfully"
       });
       
-      // Reset form
-      setReportForm({
-        reportType: "",
-        reportName: "",
-        patientPhone: "",
-        file: null
-      });
-      
     } catch (error) {
-      console.error("Error uploading report:", error);
+      console.error("Report upload error:", error);
       toast({
         title: "Error",
         description: "Failed to upload report. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setUploading(false);
     }
   };
 
   return (
     <DashboardLayout 
-      title="Diagnostic Lab Dashboard" 
-      subtitle="Upload and manage your patient reports"
+      title={`Welcome, ${centerName}`}
+      subtitle="Manage patient reports and diagnostic services"
     >
-      <div className="flex justify-center">
-        <Card className="max-w-2xl w-full bg-white shadow-sm">
-          <CardContent className="p-8">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-semibold">Upload Medical Report</h2>
-              <p className="text-gray-600">Upload a new medical report for a patient</p>
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Upload Report Card */}
+        <Card className="bg-white shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center mb-4">
+              <Upload className="h-5 w-5 mr-2 text-blue-600" />
+              <h2 className="text-xl font-semibold">Upload New Report</h2>
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="reportName" className="text-center block font-medium">
-                  Report Name
-                </Label>
-                <Input
-                  id="reportName"
-                  name="reportName"
-                  value={reportForm.reportName}
-                  onChange={handleChange}
-                  placeholder="Enter report name"
-                  className="w-full"
-                />
-              </div>
             
-              <div className="space-y-2">
-                <Label htmlFor="reportType" className="text-center block font-medium">
-                  Report Type
-                </Label>
-                <select
-                  id="reportType"
-                  name="reportType"
-                  value={reportForm.reportType}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="patient_phone">Patient Phone Number</Label>
+                <Input 
+                  id="patient_phone" 
+                  name="patient_phone"
+                  placeholder="Enter patient's phone number" 
+                  value={reportForm.patient_phone}
                   onChange={handleChange}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="" disabled>Select report type</option>
-                  <option value="Blood Test">Blood Test</option>
-                  <option value="Radiology">Radiology</option>
-                  <option value="Cardiology">Cardiology</option>
-                  <option value="Pathology">Pathology</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="patientPhone" className="text-center block font-medium">
-                  Patient Phone Number
-                </Label>
-                <Input
-                  id="patientPhone"
-                  name="patientPhone"
-                  value={reportForm.patientPhone}
-                  onChange={handleChange}
-                  placeholder="Enter patient phone number"
-                  className="w-full"
+                  required
                 />
-                <p className="text-center text-sm text-gray-600">
-                  Enter the patient's phone number to link the report to their account
-                </p>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="file" className="text-center block font-medium">
-                  File
-                </Label>
-                <div className="border border-gray-300 rounded-md p-3">
-                  <Input
-                    id="file"
-                    name="file"
-                    type="file"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">
-                      {reportForm.file ? reportForm.file.name : "No file selected."}
-                    </span>
-                    <label
-                      htmlFor="file"
-                      className="cursor-pointer text-blue-600 hover:text-blue-800"
-                    >
-                      Browse...
-                    </label>
-                  </div>
-                </div>
+              
+              <div>
+                <Label htmlFor="name">Report Name</Label>
+                <Input 
+                  id="name" 
+                  name="name" 
+                  placeholder="e.g. Complete Blood Count" 
+                  value={reportForm.name}
+                  onChange={handleChange}
+                  required
+                />
               </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
-                disabled={isLoading}
+              
+              <div>
+                <Label htmlFor="type">Report Type</Label>
+                <Select 
+                  value={reportForm.type} 
+                  onValueChange={handleTypeChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Blood Test">Blood Test</SelectItem>
+                    <SelectItem value="Urine Test">Urine Test</SelectItem>
+                    <SelectItem value="X-Ray">X-Ray</SelectItem>
+                    <SelectItem value="MRI">MRI</SelectItem>
+                    <SelectItem value="CT Scan">CT Scan</SelectItem>
+                    <SelectItem value="Ultrasound">Ultrasound</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="file">Report File (Optional)</Label>
+                <Input 
+                  id="file" 
+                  type="file" 
+                  onChange={handleFileChange}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                />
+                <p className="text-xs text-gray-500 mt-1">Upload PDF or image files (max 10MB)</p>
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={uploading}
               >
-                {isLoading ? "Uploading..." : "Upload Report"}
+                {uploading ? "Uploading..." : "Upload Report"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+        
+        {/* Recent Uploads Card */}
+        <Card className="bg-white shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center mb-4">
+              <FileText className="h-5 w-5 mr-2 text-blue-600" />
+              <h2 className="text-xl font-semibold">Recent Uploads</h2>
+            </div>
+            
+            {loading ? (
+              <div className="text-center py-8">Loading reports...</div>
+            ) : reports.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No reports uploaded yet. Your uploaded reports will appear here.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reports.slice(0, 5).map((report) => (
+                  <div key={report.id} className="flex items-center p-3 border rounded-lg">
+                    <div className="p-2 bg-blue-50 rounded mr-3">
+                      <File className="h-5 w-5 text-blue-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">{report.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(report.date).toLocaleDateString()} • {report.type}
+                      </p>
+                    </div>
+                    {report.file_url && (
+                      <a 
+                        href={report.file_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:text-blue-700"
+                      >
+                        <ArrowRight className="h-5 w-5" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+                
+                {reports.length > 5 && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-4"
+                    onClick={() => {
+                      toast({
+                        title: "View All Reports",
+                        description: "This feature is coming soon"
+                      });
+                    }}
+                  >
+                    View All Reports
+                  </Button>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
