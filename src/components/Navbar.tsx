@@ -37,21 +37,6 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
             <Mail className="h-4 w-4" />
             <span>Contact</span>
           </Link>
-          
-          {!hideAuthButtons && (
-            <>
-              <Link to="/login">
-                <Button variant="outline" className="border-medivault-blue text-medivault-blue hover:bg-medivault-blue hover:text-white">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/signup">
-                <Button className="bg-medivault-blue hover:bg-medivault-darkBlue text-white">
-                  Sign Up
-                </Button>
-              </Link>
-            </>
-          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -81,21 +66,6 @@ const Navbar = ({ hideAuthButtons = false }: NavbarProps) => {
               <Mail className="h-4 w-4" />
               <span>Contact</span>
             </Link>
-            
-            {!hideAuthButtons && (
-              <>
-                <Link to="/login" className="py-2">
-                  <Button variant="outline" className="w-full border-medivault-blue text-medivault-blue hover:bg-medivault-blue hover:text-white">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link to="/signup" className="py-2">
-                  <Button className="w-full bg-medivault-blue hover:bg-medivault-darkBlue text-white">
-                    Sign Up
-                  </Button>
-                </Link>
-              </>
-            )}
           </div>
         </div>
       )}
