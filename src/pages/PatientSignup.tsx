@@ -1,12 +1,14 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, User, Building2 } from "lucide-react";
+import { registerUser } from "@/utils/authUtils";
 
 const PatientSignup = () => {
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
@@ -30,14 +32,33 @@ const PatientSignup = () => {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    // Register the user
+    const result = registerUser(
+      phoneNumber,
+      password,
+      'patient',
+      fullName
+    );
+
+    if (result.success) {
       toast({
         title: "Account created successfully",
         description: "Welcome to MediVault! You can now sign in to your account.",
       });
-    }, 1500);
+      
+      // Navigate to login page after successful registration
+      setTimeout(() => {
+        navigate("/patient-login");
+      }, 1500);
+    } else {
+      toast({
+        title: "Registration failed",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
+    
+    setIsLoading(false);
   };
 
   return (

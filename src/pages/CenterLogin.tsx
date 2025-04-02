@@ -6,21 +6,43 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, User } from "lucide-react";
+import { loginUser } from "@/utils/authUtils";
 
 export default function CenterLogin() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loginData, setLoginData] = useState({ phone: "", password: "" });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would authenticate the diagnostic center here
+    setIsLoading(true);
+
     if (loginData.phone && loginData.password) {
-      toast({
-        title: "Success",
-        description: "Logged in successfully",
-      });
-      navigate("/diagnostic-dashboard");
+      // Attempt to login the user
+      const result = loginUser(loginData.phone, loginData.password);
+      
+      if (result.success) {
+        if (result.userType === 'center') {
+          toast({
+            title: "Success",
+            description: "Logged in successfully",
+          });
+          navigate("/diagnostic-dashboard");
+        } else {
+          toast({
+            title: "Error",
+            description: "This account is registered as a patient",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
     } else {
       toast({
         title: "Error",
@@ -28,6 +50,7 @@ export default function CenterLogin() {
         variant: "destructive",
       });
     }
+    setIsLoading(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,8 +125,12 @@ export default function CenterLogin() {
             />
           </div>
 
-          <Button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white py-6 text-lg">
-            Login as Diagnostic Center
+          <Button 
+            type="submit" 
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-6 text-lg"
+            disabled={isLoading}
+          >
+            {isLoading ? "Logging in..." : "Login as Diagnostic Center"}
           </Button>
 
           <div className="text-center mt-6">
