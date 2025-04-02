@@ -10,12 +10,12 @@ const Home = () => {
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
-      <div className="pt-16"> {/* Add padding to account for fixed navbar */}
+      <main>
         <Hero />
         <Features />
         <Testimonials />
         <CallToAction />
-      </div>
+      </main>
       <Footer />
     </div>
   );
