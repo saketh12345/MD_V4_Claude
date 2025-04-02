@@ -3,11 +3,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { Building2, User } from "lucide-react";
 
 export default function PatientLogin() {
   const navigate = useNavigate();
@@ -40,77 +38,81 @@ export default function PatientLogin() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-blue-600 p-4">
-      <Card className="w-full max-w-md">
-        <CardContent className="pt-6">
-          <Tabs defaultValue="patient">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="patient" className="text-lg">
-                Patient Login
-              </TabsTrigger>
-              <TabsTrigger value="diagnostic" className="text-lg" asChild>
-                <Link to="/center-login">Diagnostic Center</Link>
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="patient">
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    placeholder="Enter your phone number"
-                    value={loginData.phone}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+    <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4">
+      <Card className="w-full max-w-md p-8 rounded-lg">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-2">Login to MediVault</h1>
+          <p className="text-gray-500">Enter your credentials to access your account</p>
+        </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <Link
-                      to="#"
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      Forgot Password?
-                    </Link>
-                  </div>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={loginData.password}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+        <div className="flex justify-center mb-8">
+          <Link to="/patient-login" className="w-1/2 flex justify-center">
+            <div className="flex flex-col items-center">
+              <div className="rounded-full p-5 bg-blue-500 text-white">
+                <User className="h-8 w-8" />
+              </div>
+              <span className="mt-2 text-blue-500 font-medium">Patient</span>
+            </div>
+          </Link>
+          <Link to="/center-login" className="w-1/2 flex justify-center">
+            <div className="flex flex-col items-center">
+              <div className="rounded-full p-5 bg-white border border-gray-200">
+                <Building2 className="h-8 w-8 text-gray-400" />
+              </div>
+              <span className="mt-2 text-gray-400">Diagnostic Center</span>
+            </div>
+          </Link>
+        </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="remember" />
-                  <label
-                    htmlFor="remember"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Remember me
-                  </label>
-                </div>
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div>
+            <label htmlFor="phone" className="block text-lg font-medium mb-2">
+              Phone Number
+            </label>
+            <Input
+              id="phone"
+              name="phone"
+              type="tel"
+              placeholder="+1 (555) 000-0000"
+              value={loginData.phone}
+              onChange={handleChange}
+              className="w-full p-3 text-lg"
+              required
+            />
+          </div>
 
-                <Button type="submit" className="w-full bg-blue-600">
-                  Sign in
-                </Button>
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label htmlFor="password" className="block text-lg font-medium">
+                Password
+              </label>
+              <Link to="#" className="text-blue-500 hover:text-blue-600">
+                Forgot password?
+              </Link>
+            </div>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="•••••••"
+              value={loginData.password}
+              onChange={handleChange}
+              className="w-full p-3 text-lg"
+              required
+            />
+          </div>
 
-                <div className="text-center text-sm">
-                  Don't have an account?{" "}
-                  <Link to="/patient-signup" className="text-blue-600 hover:text-blue-800">
-                    Create Account
-                  </Link>
-                </div>
-              </form>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
+          <Button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white py-6 text-lg">
+            Login as Patient
+          </Button>
+
+          <div className="text-center mt-6">
+            <span className="text-gray-700">Don't have an account? </span>
+            <Link to="/patient-signup" className="text-blue-500 hover:text-blue-600 font-medium">
+              Register here
+            </Link>
+          </div>
+        </form>
       </Card>
     </div>
   );
