@@ -15,6 +15,10 @@ import PatientLogin from "./pages/PatientLogin";
 import CenterLogin from "./pages/CenterLogin";
 import PatientSignup from "./pages/PatientSignup";
 import CenterSignup from "./pages/CenterSignup";
+import PatientDashboard from "./pages/PatientDashboard";
+import DiagnosticDashboard from "./pages/DiagnosticDashboard";
+import PatientSettings from "./pages/PatientSettings";
+import DiagnosticSettings from "./pages/DiagnosticSettings";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +39,10 @@ const App = () => (
           <Route path="/center-login" element={<CenterLogin />} />
           <Route path="/patient-signup" element={<PatientSignup />} />
           <Route path="/center-signup" element={<CenterSignup />} />
+          <Route path="/patient-dashboard" element={<PatientDashboard />} />
+          <Route path="/patient-settings" element={<PatientSettings />} />
+          <Route path="/diagnostic-dashboard" element={<DiagnosticDashboard />} />
+          <Route path="/diagnostic-settings" element={<DiagnosticSettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
