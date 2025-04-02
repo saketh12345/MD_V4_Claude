@@ -1,5 +1,8 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
+
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 interface AuthUser {
   id: string;
