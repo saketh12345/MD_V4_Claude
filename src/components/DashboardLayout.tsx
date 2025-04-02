@@ -1,9 +1,11 @@
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import DashboardSidebar from "./DashboardSidebar";
+import { logoutUser, getCurrentUser } from "@/utils/authUtils";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -14,13 +16,46 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ children, title, subtitle }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
+  const [userName, setUserName] = useState("");
   
   // Determine if this is a patient or diagnostic dashboard
   const userType = location.pathname.includes("patient") ? "patient" : "diagnostic";
 
-  const handleLogout = () => {
-    // In a real app, we would clear auth tokens here
-    navigate("/");
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const user = await getCurrentUser();
+      if (user) {
+        const name = userType === "patient" ? user.fullName : user.centerName;
+        setUserName(name || "User");
+      } else {
+        // Redirect to login if not authenticated
+        const loginPath = userType === "patient" ? "/patient-login" : "/center-login";
+        navigate(loginPath);
+      }
+    };
+    
+    fetchUserData();
+  }, [navigate, userType]);
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out"
+      });
+      
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to log out",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -33,7 +68,9 @@ const DashboardLayout = ({ children, title, subtitle }: DashboardLayoutProps) =>
         {/* Header */}
         <header className="bg-white shadow-sm flex justify-between items-center p-4">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">{title}</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {title.includes("Good Morning") ? `Good Morning, ${userName}` : title}
+            </h1>
             {subtitle && <p className="text-gray-600">{subtitle}</p>}
           </div>
           <Button

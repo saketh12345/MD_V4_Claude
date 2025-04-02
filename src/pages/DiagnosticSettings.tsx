@@ -1,20 +1,59 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { getCurrentUser, updateUserData } from "@/utils/authUtils";
 
 const DiagnosticSettings = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [labInfo, setLabInfo] = useState({
-    labName: "City Diagnostics",
+    id: "",
+    labName: "",
     labDirector: "Dr. Jane Smith",
     email: "info@citydiagnostics.com",
-    phone: "+1 (555) 123-4567",
+    phone: "",
     address: "123 Medical Plaza, Suite 100, New York, NY 10001",
     description: "Providing accurate and timely diagnostic services since 2005."
   });
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const currentUser = await getCurrentUser();
+      
+      // If not logged in, redirect to login
+      if (!currentUser) {
+        toast({
+          title: "Authentication Required",
+          description: "Please login to access this page",
+          variant: "destructive"
+        });
+        navigate("/center-login");
+        return;
+      }
+      
+      // If not a center, redirect to appropriate dashboard
+      if (currentUser.userType !== 'center') {
+        navigate("/patient-dashboard");
+        return;
+      }
+      
+      setLabInfo({
+        ...labInfo,
+        id: currentUser.id,
+        labName: currentUser.centerName || "Diagnostic Center",
+        phone: currentUser.phone
+      });
+    };
+    
+    checkAuth();
+  }, [navigate, toast, labInfo]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -25,10 +64,41 @@ const DiagnosticSettings = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would save the data to the backend here
-    console.log("Saving lab info:", labInfo);
+    setIsLoading(true);
+    
+    try {
+      // Update center profile in Supabase
+      const updated = await updateUserData({
+        id: labInfo.id,
+        centerName: labInfo.labName,
+        phone: labInfo.phone,
+        userType: 'center'
+      });
+      
+      if (updated) {
+        toast({
+          title: "Success",
+          description: "Lab information updated successfully"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update lab information",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error updating lab info:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -133,8 +203,12 @@ const DiagnosticSettings = () => {
               </div>
 
               <div className="flex justify-end">
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                  Save Changes
+                <Button 
+                  type="submit" 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </form>

@@ -1,4 +1,6 @@
 
+import { supabase } from "@/integrations/supabase/client";
+
 interface AuthUser {
   id: string;
   fullName?: string;
@@ -7,135 +9,196 @@ interface AuthUser {
   userType: 'patient' | 'center';
 }
 
-// Mock storage for users since we're not using a backend
-const USERS_STORAGE_KEY = 'medivault_users';
-const CURRENT_USER_KEY = 'medivault_current_user';
-
-// Get all registered users from localStorage
-export const getUsers = (): Record<string, AuthUser> => {
-  const usersJson = localStorage.getItem(USERS_STORAGE_KEY);
-  return usersJson ? JSON.parse(usersJson) : {};
-};
-
-// Save users to localStorage
-export const saveUsers = (users: Record<string, AuthUser>) => {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-};
-
 // Register a new user
-export const registerUser = (
+export const registerUser = async (
   phone: string, 
   password: string, 
   userType: 'patient' | 'center',
   fullName?: string,
   centerName?: string,
   licenseNumber?: string
-): { success: boolean; message: string } => {
-  const users = getUsers();
-  
-  // Check if user already exists
-  if (users[phone]) {
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    // Register the user with Supabase
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: `${phone}@medivault.com`, // Using phone as part of email since Supabase requires email
+      password,
+      options: {
+        data: {
+          phone,
+          user_type: userType,
+          full_name: fullName,
+          center_name: centerName,
+          license_number: licenseNumber
+        }
+      }
+    });
+    
+    if (authError) {
+      return { 
+        success: false, 
+        message: authError.message 
+      };
+    }
+    
+    // Create profile entry
+    if (authData.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          phone,
+          user_type: userType,
+          full_name: fullName,
+          center_name: centerName
+        });
+      
+      if (profileError) {
+        console.error("Profile creation error:", profileError);
+        return { 
+          success: false, 
+          message: "Account created but profile setup failed. Please contact support." 
+        };
+      }
+    }
+    
+    return { 
+      success: true, 
+      message: 'Registration successful' 
+    };
+  } catch (error) {
+    console.error("Registration error:", error);
     return { 
       success: false, 
-      message: 'A user with this phone number already exists'
+      message: 'An unexpected error occurred during registration' 
     };
   }
-  
-  // Create a new user
-  const newUser: AuthUser = {
-    id: Date.now().toString(),
-    phone,
-    userType,
-    ...(fullName ? { fullName } : {}),
-    ...(centerName ? { centerName } : {})
-  };
-  
-  // Add user to the users object
-  users[phone] = newUser;
-  
-  // Store the user's password separately
-  const passwordsJson = localStorage.getItem('medivault_passwords') || '{}';
-  const passwords = JSON.parse(passwordsJson);
-  passwords[phone] = password;
-  localStorage.setItem('medivault_passwords', JSON.stringify(passwords));
-  
-  // Save the updated users
-  saveUsers(users);
-  
-  return { 
-    success: true, 
-    message: 'Registration successful'
-  };
 };
 
 // Login a user
-export const loginUser = (
+export const loginUser = async (
   phone: string,
   password: string
-): { success: boolean; message: string; userType?: 'patient' | 'center' } => {
-  const users = getUsers();
-  const user = users[phone];
-  
-  // Check if user exists
-  if (!user) {
+): Promise<{ success: boolean; message: string; userType?: 'patient' | 'center' }> => {
+  try {
+    // Sign in with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: `${phone}@medivault.com`, // Using phone as part of email
+      password
+    });
+    
+    if (error) {
+      return { 
+        success: false, 
+        message: error.message 
+      };
+    }
+    
+    if (!data.user) {
+      return { 
+        success: false, 
+        message: 'No account found with this phone number' 
+      };
+    }
+    
+    // Get user profile from profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('user_type')
+      .eq('id', data.user.id)
+      .single();
+    
+    if (profileError || !profile) {
+      return { 
+        success: false, 
+        message: 'Error retrieving user profile' 
+      };
+    }
+    
+    return { 
+      success: true, 
+      message: 'Login successful',
+      userType: profile.user_type as 'patient' | 'center'
+    };
+  } catch (error) {
+    console.error("Login error:", error);
     return { 
       success: false, 
-      message: 'No account found with this phone number'
+      message: 'An unexpected error occurred during login' 
     };
   }
-  
-  // Check password
-  const passwordsJson = localStorage.getItem('medivault_passwords') || '{}';
-  const passwords = JSON.parse(passwordsJson);
-  
-  if (passwords[phone] !== password) {
-    return { 
-      success: false, 
-      message: 'Incorrect password'
-    };
-  }
-  
-  // Set current user in localStorage
-  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-  
-  return { 
-    success: true, 
-    message: 'Login successful',
-    userType: user.userType
-  };
 };
 
 // Get current user
-export const getCurrentUser = (): AuthUser | null => {
-  const userJson = localStorage.getItem(CURRENT_USER_KEY);
-  return userJson ? JSON.parse(userJson) : null;
+export const getCurrentUser = async (): Promise<AuthUser | null> => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+    
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+    
+    if (error || !profile) return null;
+    
+    return {
+      id: profile.id,
+      fullName: profile.full_name || undefined,
+      centerName: profile.center_name || undefined,
+      phone: profile.phone,
+      userType: profile.user_type as 'patient' | 'center'
+    };
+  } catch (error) {
+    console.error("Get current user error:", error);
+    return null;
+  }
 };
 
 // Logout user
-export const logoutUser = (): void => {
-  localStorage.removeItem(CURRENT_USER_KEY);
+export const logoutUser = async (): Promise<void> => {
+  try {
+    await supabase.auth.signOut();
+  } catch (error) {
+    console.error("Logout error:", error);
+  }
 };
 
 // Update user data
-export const updateUserData = (updatedUser: AuthUser): boolean => {
+export const updateUserData = async (updatedUser: AuthUser): Promise<boolean> => {
   try {
-    const users = getUsers();
+    // Update profile in Supabase
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: updatedUser.fullName,
+        center_name: updatedUser.centerName,
+        phone: updatedUser.phone,
+      })
+      .eq('id', updatedUser.id);
     
-    // Update user in users collection
-    users[updatedUser.phone] = updatedUser;
-    
-    // Save updated users back to localStorage
-    saveUsers(users);
-    
-    // Update current user if this is the current user
-    const currentUser = getCurrentUser();
-    if (currentUser && currentUser.id === updatedUser.id) {
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedUser));
+    if (error) {
+      console.error("Profile update error:", error);
+      return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Error updating user data:', error);
+    console.error("Update user data error:", error);
     return false;
   }
+};
+
+// For backward compatibility with localStorage implementation
+// These functions simulate the old behavior but use Supabase under the hood
+export const getUsers = async (): Promise<Record<string, AuthUser>> => {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return {};
+  return { [currentUser.phone]: currentUser };
+};
+
+export const saveUsers = async (): Promise<void> => {
+  // No-op in Supabase implementation
+  return;
 };

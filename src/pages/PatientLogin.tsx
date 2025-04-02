@@ -14,13 +14,13 @@ export default function PatientLogin() {
   const [loginData, setLoginData] = useState({ phone: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     if (loginData.phone && loginData.password) {
       // Attempt to login the user
-      const result = loginUser(loginData.phone, loginData.password);
+      const result = await loginUser(loginData.phone, loginData.password);
       
       if (result.success) {
         if (result.userType === 'patient') {

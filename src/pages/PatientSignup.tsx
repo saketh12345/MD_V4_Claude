@@ -18,7 +18,7 @@ const PatientSignup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
@@ -33,7 +33,7 @@ const PatientSignup = () => {
     setIsLoading(true);
 
     // Register the user
-    const result = registerUser(
+    const result = await registerUser(
       phoneNumber,
       password,
       'patient',

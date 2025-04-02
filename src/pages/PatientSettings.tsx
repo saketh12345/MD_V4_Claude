@@ -1,15 +1,19 @@
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentUser } from "@/utils/authUtils";
+import { getCurrentUser, updateUserData } from "@/utils/authUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 const PatientSettings = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [personalInfo, setPersonalInfo] = useState({
+    id: "",
     fullName: "",
     phoneNumber: ""
   });
@@ -17,14 +21,57 @@ const PatientSettings = () => {
 
   // Load user data on component mount
   useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (currentUser) {
+    const checkAuth = async () => {
+      const currentUser = await getCurrentUser();
+      
+      // If not logged in, redirect to login
+      if (!currentUser) {
+        toast({
+          title: "Authentication Required",
+          description: "Please login to access this page",
+          variant: "destructive"
+        });
+        navigate("/patient-login");
+        return;
+      }
+      
+      // If not a patient, redirect to appropriate dashboard
+      if (currentUser.userType !== 'patient') {
+        navigate("/diagnostic-dashboard");
+        return;
+      }
+      
       setPersonalInfo({
-        fullName: currentUser.fullName || "Jane Doe",
-        phoneNumber: currentUser.phone || "+1 (555) 123-4567"
+        id: currentUser.id,
+        fullName: currentUser.fullName || "",
+        phoneNumber: currentUser.phone
       });
-    }
-  }, []);
+    };
+    
+    checkAuth();
+    
+    // Set up realtime subscription for profile updates
+    const profileSubscription = supabase
+      .channel('profiles-changes')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${personalInfo.id}`
+      }, (payload) => {
+        const profile = payload.new;
+        setPersonalInfo({
+          id: profile.id,
+          fullName: profile.full_name || "",
+          phoneNumber: profile.phone
+        });
+      })
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(profileSubscription);
+    };
+  }, [navigate, toast, personalInfo.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPersonalInfo({
@@ -33,40 +80,29 @@ const PatientSettings = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Update user in localStorage
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      // Get all users from localStorage
-      const users = JSON.parse(localStorage.getItem('medivault_users') || '{}');
-      
-      // Update the current user's phone number and fullName
-      if (users[currentUser.phone]) {
-        // Create the updated user object
-        const updatedUser = {
-          ...currentUser,
-          phone: personalInfo.phoneNumber,
-          fullName: personalInfo.fullName
-        };
-        
-        // Remove the old phone entry and add the new one
-        delete users[currentUser.phone];
-        users[personalInfo.phoneNumber] = updatedUser;
-        
-        // Save updated users back to localStorage
-        localStorage.setItem('medivault_users', JSON.stringify(users));
-        
-        // Update current user in session
-        localStorage.setItem('medivault_current_user', JSON.stringify(updatedUser));
-        
-        toast({
-          title: "Success",
-          description: "Profile information updated successfully"
-        });
-      }
+    // Update user in Supabase
+    const updated = await updateUserData({
+      id: personalInfo.id,
+      fullName: personalInfo.fullName,
+      phone: personalInfo.phoneNumber,
+      userType: 'patient'
+    });
+    
+    if (updated) {
+      toast({
+        title: "Success",
+        description: "Profile information updated successfully"
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to update profile information",
+        variant: "destructive"
+      });
     }
     
     setIsLoading(false);
