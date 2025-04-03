@@ -27,6 +27,7 @@ const PatientDashboard = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [patientId, setPatientId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -50,14 +51,42 @@ const PatientDashboard = () => {
       }
       
       setUserId(currentUser.id);
-      fetchReports(currentUser.id);
+      
+      // Find the patient record for this user
+      const { data: patientData, error: patientError } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('phone_number', currentUser.phone)
+        .maybeSingle();
+        
+      if (patientError) {
+        console.error("Error finding patient record:", patientError);
+        toast({
+          title: "Error",
+          description: "Could not find your patient record",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (patientData) {
+        setPatientId(patientData.id);
+        fetchReports(patientData.id);
+      } else {
+        // No patient record found for this user
+        toast({
+          title: "No Patient Record",
+          description: "No patient record found for your account. Please contact support.",
+          variant: "destructive"
+        });
+      }
     };
     
     checkAuth();
   }, [navigate, toast]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!patientId) return;
     
     // Set up realtime subscription for reports
     const reportsSubscription = supabase
@@ -66,25 +95,25 @@ const PatientDashboard = () => {
         event: 'INSERT',
         schema: 'public',
         table: 'reports',
-        filter: `patient_id=eq.${userId}`
+        filter: `patient_id=eq.${patientId}`
       }, () => {
         // Refetch reports when a new one is added
-        fetchReports(userId);
+        fetchReports(patientId);
       })
       .subscribe();
     
     return () => {
       supabase.removeChannel(reportsSubscription);
     };
-  }, [userId]);
+  }, [patientId]);
 
-  const fetchReports = async (userId: string) => {
+  const fetchReports = async (patientId: string) => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('reports')
         .select('*')
-        .eq('patient_id', userId)
+        .eq('patient_id', patientId)
         .order('created_at', { ascending: false });
         
       if (error) {

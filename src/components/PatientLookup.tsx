@@ -1,121 +1,117 @@
 
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Database } from "@/integrations/supabase/types";
-
-type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+import PatientRegistration from "./PatientRegistration";
 
 interface PatientLookupProps {
-  onPatientFound: (patientId: string, patientName: string | null) => void;
+  onPatientFound: (id: string, name: string | null) => void;
 }
 
 const PatientLookup = ({ onPatientFound }: PatientLookupProps) => {
-  const [phone, setPhone] = useState<string>("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const { toast } = useToast();
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPhone(e.target.value);
-    // Reset status when phone number changes
-    if (status !== "idle") {
-      setStatus("idle");
-      setErrorMessage(null);
-    }
-  };
-
-  const lookupPatient = async () => {
-    if (!phone.trim()) {
-      setStatus("error");
-      setErrorMessage("Please enter a phone number");
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!phoneNumber.trim()) {
+      toast({
+        title: "Phone number required",
+        description: "Please enter a patient's phone number",
+        variant: "destructive"
+      });
       return;
     }
-
-    setStatus("loading");
-    setErrorMessage(null);
-
+    
+    setSearching(true);
+    setShowRegistration(false);
+    
     try {
-      // First try exact match
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('user_type', 'patient')
-        .eq('phone', phone.trim())
+      // Search for patient by phone number
+      const { data: patient, error } = await supabase
+        .from('patients')
+        .select('id, name')
+        .eq('phone_number', phoneNumber.trim())
         .maybeSingle();
-
+      
       if (error) {
         throw error;
       }
-
-      if (data) {
-        setStatus("success");
-        onPatientFound(data.id, data.full_name);
-        return;
+      
+      if (patient) {
+        // Patient found
+        onPatientFound(patient.id, patient.name);
+        toast({
+          title: "Patient found",
+          description: `Found patient: ${patient.name || "Unknown"}`,
+        });
+      } else {
+        // No patient found, show registration form
+        setShowRegistration(true);
+        toast({
+          title: "Patient not found",
+          description: "No patient found with this phone number. You can register them below.",
+          variant: "destructive"
+        });
       }
-
-      // No exact match, try simplified match (removing non-digits)
-      const simplifiedPhone = phone.replace(/\D/g, '');
-      
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, phone, full_name')
-        .eq('user_type', 'patient');
-      
-      if (profilesError) {
-        throw profilesError;
-      }
-      
-      const matchedProfile = profiles?.find(profile => {
-        const profileSimplifiedPhone = profile.phone.replace(/\D/g, '');
-        return profileSimplifiedPhone === simplifiedPhone;
-      });
-      
-      if (matchedProfile) {
-        setStatus("success");
-        onPatientFound(matchedProfile.id, matchedProfile.full_name);
-        return;
-      }
-
-      // No match found
-      setStatus("error");
-      setErrorMessage("No patient found with this phone number");
-
     } catch (error) {
-      console.error("Patient lookup error:", error);
-      setStatus("error");
-      setErrorMessage("An error occurred while looking up patient");
+      console.error("Error searching for patient:", error);
+      toast({
+        title: "Error",
+        description: "Failed to search for patient. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSearching(false);
     }
   };
 
+  const handlePatientRegistered = (id: string, name: string) => {
+    setShowRegistration(false);
+    onPatientFound(id, name);
+  };
+
   return (
-    <div className="space-y-4">
-      <div>
-        <Label htmlFor="patient_phone">Patient Phone Number</Label>
-        <div className="flex gap-2">
-          <Input 
-            id="patient_phone" 
-            value={phone}
-            onChange={handlePhoneChange}
-            placeholder="Enter patient's phone number" 
-            className={`flex-1 ${status === "error" ? "border-red-500" : status === "success" ? "border-green-500" : ""}`}
-          />
+    <div>
+      <form onSubmit={handleSearch} className="mb-4">
+        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+          <div className="flex-1">
+            <Input
+              type="tel"
+              placeholder="Enter patient phone number"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              className="w-full"
+              required
+            />
+          </div>
           <Button 
-            onClick={lookupPatient}
-            disabled={status === "loading" || !phone.trim()}
-            variant="outline"
+            type="submit" 
+            disabled={searching || !phoneNumber.trim()}
+            className="bg-blue-500 hover:bg-blue-600"
           >
-            {status === "loading" ? "Searching..." : "Find Patient"}
+            {searching ? "Searching..." : (
+              <>
+                <Search className="h-4 w-4 mr-2" />
+                Find Patient
+              </>
+            )}
           </Button>
         </div>
-        {status === "error" && errorMessage && (
-          <p className="text-red-600 text-xs mt-1">{errorMessage}</p>
-        )}
-        {status === "success" && (
-          <p className="text-green-600 text-xs mt-1">✓ Patient found</p>
-        )}
-      </div>
+      </form>
+
+      {showRegistration && (
+        <PatientRegistration 
+          phoneNumber={phoneNumber} 
+          onSuccess={handlePatientRegistered} 
+        />
+      )}
     </div>
   );
 };

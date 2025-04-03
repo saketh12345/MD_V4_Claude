@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,12 +19,57 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
   const [uploading, setUploading] = useState(false);
   const [patientId, setPatientId] = useState<string | null>(null);
   const [patientName, setPatientName] = useState<string | null>(null);
+  const [labId, setLabId] = useState<string | null>(null);
   
   const [reportForm, setReportForm] = useState({
     name: "",
     type: "Blood Test",
     file: null as File | null
   });
+
+  useEffect(() => {
+    // Find or create the lab entry for this diagnostic center
+    const findOrCreateLab = async () => {
+      // First try to find the lab by center name
+      const { data: existingLab, error: findError } = await supabase
+        .from('labs')
+        .select('id')
+        .eq('name', centerName)
+        .maybeSingle();
+      
+      if (findError) {
+        console.error("Error finding lab:", findError);
+        return;
+      }
+      
+      if (existingLab) {
+        setLabId(existingLab.id);
+        return;
+      }
+      
+      // If lab doesn't exist, create it
+      const { data: newLab, error: createError } = await supabase
+        .from('labs')
+        .insert({
+          name: centerName,
+        })
+        .select('id')
+        .single();
+      
+      if (createError) {
+        console.error("Error creating lab:", createError);
+        return;
+      }
+      
+      if (newLab) {
+        setLabId(newLab.id);
+      }
+    };
+    
+    if (centerName) {
+      findOrCreateLab();
+    }
+  }, [centerName]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -67,6 +112,15 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
       return;
     }
     
+    if (!labId) {
+      toast({
+        title: "Lab Information Missing",
+        description: "Could not determine lab information. Please try again later.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setUploading(true);
     
     try {
@@ -90,7 +144,7 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
         }
       }
       
-      // Create report record
+      // Create report record using the old structure but with new IDs
       const { error: reportError } = await supabase
         .from('reports')
         .insert({
@@ -99,7 +153,8 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
           lab: centerName,
           patient_id: patientId,
           file_url: fileUrl,
-          uploaded_by: centerId
+          uploaded_by: labId,
+          date: new Date().toISOString().split('T')[0]  // Current date in YYYY-MM-DD format
         });
         
       if (reportError) {
@@ -197,7 +252,7 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
       <Button 
         type="submit" 
         className="w-full"
-        disabled={uploading || !patientId}
+        disabled={uploading || !patientId || !labId}
       >
         {uploading ? "Uploading..." : "Upload Report"}
       </Button>
