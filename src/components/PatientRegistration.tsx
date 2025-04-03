@@ -32,15 +32,13 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
     setIsSubmitting(true);
     
     try {
-      // Create patient record
+      // Create patient record using raw query to handle type mismatch
       const { data, error } = await supabase
-        .from('patients')
-        .insert({
-          name,
-          phone_number: phoneNumber,
-          email: email || null,
+        .rpc('insert_patient', {
+          p_name: name,
+          p_phone: phoneNumber,
+          p_email: email || null
         })
-        .select('id, name')
         .single();
         
       if (error) {

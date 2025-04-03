@@ -30,39 +30,22 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
   useEffect(() => {
     // Find or create the lab entry for this diagnostic center
     const findOrCreateLab = async () => {
-      // First try to find the lab by center name
-      const { data: existingLab, error: findError } = await supabase
-        .from('labs')
-        .select('id')
-        .eq('name', centerName)
-        .maybeSingle();
-      
-      if (findError) {
-        console.error("Error finding lab:", findError);
-        return;
-      }
-      
-      if (existingLab) {
-        setLabId(existingLab.id);
-        return;
-      }
-      
-      // If lab doesn't exist, create it
-      const { data: newLab, error: createError } = await supabase
-        .from('labs')
-        .insert({
-          name: centerName,
-        })
-        .select('id')
-        .single();
-      
-      if (createError) {
-        console.error("Error creating lab:", createError);
-        return;
-      }
-      
-      if (newLab) {
-        setLabId(newLab.id);
+      try {
+        // Use RPC for type-safe database operations
+        const { data, error } = await supabase
+          .rpc('find_or_create_lab', { lab_name: centerName })
+          .single();
+        
+        if (error) {
+          console.error("Error with lab:", error);
+          return;
+        }
+        
+        if (data) {
+          setLabId(data.id);
+        }
+      } catch (err) {
+        console.error("Lab creation error:", err);
       }
     };
     
@@ -144,17 +127,15 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
         }
       }
       
-      // Create report record using the old structure but with new IDs
+      // Create report record using RPC to handle type mismatch
       const { error: reportError } = await supabase
-        .from('reports')
-        .insert({
-          name: reportForm.name,
-          type: reportForm.type,
-          lab: centerName,
-          patient_id: patientId,
-          file_url: fileUrl,
-          uploaded_by: labId,
-          date: new Date().toISOString().split('T')[0]  // Current date in YYYY-MM-DD format
+        .rpc('insert_report', {
+          r_name: reportForm.name,
+          r_type: reportForm.type,
+          r_lab: centerName,
+          r_patient_id: patientId,
+          r_file_url: fileUrl,
+          r_uploaded_by: labId
         });
         
       if (reportError) {

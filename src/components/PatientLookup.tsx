@@ -33,23 +33,22 @@ const PatientLookup = ({ onPatientFound }: PatientLookupProps) => {
     setShowRegistration(false);
     
     try {
-      // Search for patient by phone number
-      const { data: patient, error } = await supabase
-        .from('patients')
-        .select('id, name')
-        .eq('phone_number', phoneNumber.trim())
+      // Search for patient by phone number using raw query to handle type mismatch
+      const { data, error } = await supabase
+        .rpc('get_patient_by_phone', { phone: phoneNumber.trim() })
         .maybeSingle();
       
       if (error) {
+        console.error("Patient search error:", error);
         throw error;
       }
       
-      if (patient) {
+      if (data) {
         // Patient found
-        onPatientFound(patient.id, patient.name);
+        onPatientFound(data.id, data.name);
         toast({
           title: "Patient found",
-          description: `Found patient: ${patient.name || "Unknown"}`,
+          description: `Found patient: ${data.name || "Unknown"}`,
         });
       } else {
         // No patient found, show registration form
