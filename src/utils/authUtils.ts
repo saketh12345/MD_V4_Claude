@@ -23,16 +23,17 @@ export const registerUser = async (
 ): Promise<{ success: boolean; message: string }> => {
   try {
     console.log("Registering new user with phone:", phone);
-    // Normalize phone number before storing
-    const normalizedPhone = phone.trim();
+    // Save phone number in original format for user-friendly display
+    const originalPhone = phone.trim();
+    // For database operations, use the original format
     
     // Register the user with Supabase
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      phone: normalizedPhone,
+      phone: originalPhone,
       password,
       options: {
         data: {
-          phone: normalizedPhone,
+          phone: originalPhone,
           user_type: userType,
           full_name: fullName,
           center_name: centerName,
@@ -53,7 +54,7 @@ export const registerUser = async (
     if (authData.user) {
       const profileData: ProfileInsert = {
         id: authData.user.id,
-        phone: normalizedPhone,
+        phone: originalPhone, // Save the original format
         user_type: userType,
         full_name: fullName,
         center_name: centerName
@@ -94,12 +95,12 @@ export const loginUser = async (
 ): Promise<{ success: boolean; message: string; userType?: 'patient' | 'center' }> => {
   try {
     console.log("Attempting login with phone:", phone);
-    // Normalize phone number before comparing
-    const normalizedPhone = phone.trim();
+    // Original format for phone
+    const originalPhone = phone.trim();
     
     // Sign in with Supabase using phone
     const { data, error } = await supabase.auth.signInWithPassword({
-      phone: normalizedPhone,
+      phone: originalPhone,
       password
     });
     
@@ -140,7 +141,7 @@ export const loginUser = async (
       
       const newProfile: ProfileInsert = {
         id: data.user.id,
-        phone: normalizedPhone || userMeta.phone,
+        phone: originalPhone || userMeta.phone,
         user_type: userMeta.user_type as 'patient' | 'center',
         full_name: userMeta.full_name,
         center_name: userMeta.center_name
@@ -222,8 +223,8 @@ export const updateUserData = async (updatedUser: AuthUser): Promise<boolean> =>
   try {
     console.log("Updating user profile:", updatedUser);
     
-    // Normalize phone number before updating
-    const normalizedPhone = updatedUser.phone.trim();
+    // Keep phone in original format
+    const originalPhone = updatedUser.phone.trim();
     
     // Update profile in Supabase
     const { error } = await supabase
@@ -231,7 +232,7 @@ export const updateUserData = async (updatedUser: AuthUser): Promise<boolean> =>
       .update({
         full_name: updatedUser.fullName,
         center_name: updatedUser.centerName,
-        phone: normalizedPhone,
+        phone: originalPhone,
       })
       .eq('id', updatedUser.id);
     
@@ -245,7 +246,7 @@ export const updateUserData = async (updatedUser: AuthUser): Promise<boolean> =>
     // Also update auth metadata to keep everything in sync
     const { error: authError } = await supabase.auth.updateUser({
       data: {
-        phone: normalizedPhone,
+        phone: originalPhone,
         full_name: updatedUser.fullName,
         center_name: updatedUser.centerName
       }

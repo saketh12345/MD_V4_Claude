@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, FileText, File, ArrowRight } from "lucide-react";
@@ -25,7 +24,7 @@ const DiagnosticDashboard = () => {
   const [centerId, setCenterId] = useState<string | null>(null);
   const [centerName, setCenterName] = useState<string>("");
   const [phoneVerificationStatus, setPhoneVerificationStatus] = useState<string | null>(null);
-  const [patientProfiles, setPatientProfiles] = useState<ProfileRow[]>([]);
+  const [patientId, setPatientId] = useState<string | null>(null);
   
   // Form state
   const [reportForm, setReportForm] = useState({
@@ -34,32 +33,6 @@ const DiagnosticDashboard = () => {
     type: "Blood Test",
     file: null as File | null
   });
-
-  // Fetch all patient profiles once on component mount
-  useEffect(() => {
-    const fetchPatientProfiles = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_type', 'patient');
-        
-        if (error) {
-          console.error("Error fetching patient profiles:", error);
-          return;
-        }
-        
-        if (data) {
-          console.log("All patient profiles fetched:", data);
-          setPatientProfiles(data);
-        }
-      } catch (error) {
-        console.error("Error in fetchPatientProfiles:", error);
-      }
-    };
-    
-    fetchPatientProfiles();
-  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -146,6 +119,7 @@ const DiagnosticDashboard = () => {
     if (name === 'patient_phone') {
       // Reset verification status when phone changes
       setPhoneVerificationStatus(null);
+      setPatientId(null);
     }
     
     setReportForm({ ...reportForm, [name]: value });
@@ -161,7 +135,7 @@ const DiagnosticDashboard = () => {
     setReportForm({ ...reportForm, type: value });
   };
 
-  // Completely revised patient verification function using pre-fetched profiles
+  // Simplified patient verification method
   const verifyPatientPhone = async () => {
     if (!reportForm.patient_phone) {
       console.log("Phone number is empty");
@@ -170,61 +144,61 @@ const DiagnosticDashboard = () => {
     }
     
     try {
-      const inputPhone = reportForm.patient_phone;
-      console.log("Verifying patient phone:", inputPhone);
+      console.log("Verifying patient phone:", reportForm.patient_phone);
       
-      // Normalize the input phone number (remove any non-digit characters)
-      const normalizedInputPhone = inputPhone.replace(/\D/g, '');
-      console.log("Normalized input phone:", normalizedInputPhone);
+      // Perform a direct query to find patient with exact phone number
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, phone, full_name')
+        .eq('user_type', 'patient')
+        .eq('phone', reportForm.patient_phone)
+        .maybeSingle();
       
-      console.log("Total patient profiles to check against:", patientProfiles.length);
+      if (error) {
+        console.error("Error in patient verification query:", error);
+        setPhoneVerificationStatus("error");
+        return false;
+      }
       
-      // Log all patient phone numbers for debugging
-      console.log("All patient phone numbers in system:", 
-        patientProfiles.map(profile => ({
-          id: profile.id,
-          phone: profile.phone,
-          normalized: profile.phone.replace(/\D/g, '')
-        }))
-      );
-      
-      // Find matching profile by comparing phone numbers
-      const matchingProfile = patientProfiles.find(profile => {
-        // Try exact match first
-        if (profile.phone === inputPhone) {
-          console.log("Found exact phone match:", profile);
-          return true;
-        }
-        
-        // If not exact, try normalized match
-        const normalizedProfilePhone = profile.phone.replace(/\D/g, '');
-        const isMatch = normalizedProfilePhone === normalizedInputPhone;
-        if (isMatch) {
-          console.log("Found normalized phone match:", profile, 
-                     "Normalized from:", profile.phone, 
-                     "To:", normalizedProfilePhone);
-        }
-        return isMatch;
-      });
-      
-      if (matchingProfile) {
-        console.log("Patient profile found:", matchingProfile);
+      if (data) {
+        console.log("Patient found with exact phone match:", data);
         setPhoneVerificationStatus("verified");
-        return matchingProfile.id;
+        setPatientId(data.id);
+        return data.id;
       }
       
-      // If no match found, check for possible close matches for debugging
-      const possibleMatches = patientProfiles.filter(profile => {
-        const normalizedProfilePhone = profile.phone.replace(/\D/g, '');
-        return normalizedProfilePhone.includes(normalizedInputPhone) || 
-               normalizedInputPhone.includes(normalizedProfilePhone);
+      // If no exact match, try with a simplified match
+      console.log("No exact match, trying with simplified phone number...");
+      const simplifiedPhone = reportForm.patient_phone.replace(/\D/g, '');
+      
+      const { data: allPatients, error: patientsError } = await supabase
+        .from('profiles')
+        .select('id, phone, full_name')
+        .eq('user_type', 'patient');
+      
+      if (patientsError) {
+        console.error("Error fetching all patients:", patientsError);
+        setPhoneVerificationStatus("error");
+        return false;
+      }
+      
+      console.log(`Searching among ${allPatients?.length || 0} patients for simplified phone: ${simplifiedPhone}`);
+      
+      // Find patient with matching simplified phone
+      const matchedPatient = allPatients?.find(patient => {
+        const patientSimplifiedPhone = patient.phone.replace(/\D/g, '');
+        console.log(`Comparing patient phone: ${patient.phone} (${patientSimplifiedPhone}) with search: ${simplifiedPhone}`);
+        return patientSimplifiedPhone === simplifiedPhone;
       });
       
-      if (possibleMatches.length > 0) {
-        console.log("Possible close matches found:", possibleMatches);
+      if (matchedPatient) {
+        console.log("Patient found with simplified phone match:", matchedPatient);
+        setPhoneVerificationStatus("verified");
+        setPatientId(matchedPatient.id);
+        return matchedPatient.id;
       }
       
-      console.log("No patient found with phone number:", inputPhone);
+      console.log("No patient found with this phone number");
       setPhoneVerificationStatus("not_found");
       return false;
     } catch (error) {
@@ -250,9 +224,13 @@ const DiagnosticDashboard = () => {
     
     try {
       // 1. Verify patient phone and get patient ID
-      const patientId = await verifyPatientPhone();
+      let patientIdToUse = patientId;
       
-      if (!patientId) {
+      if (!patientIdToUse) {
+        patientIdToUse = await verifyPatientPhone() as string | false;
+      }
+      
+      if (!patientIdToUse) {
         toast({
           title: "Invalid Patient",
           description: phoneVerificationStatus === "not_found" 
@@ -291,7 +269,7 @@ const DiagnosticDashboard = () => {
           name: reportForm.name,
           type: reportForm.type,
           lab: centerName,
-          patient_id: patientId as string,
+          patient_id: patientIdToUse as string,
           file_url: fileUrl
         });
         
@@ -308,6 +286,7 @@ const DiagnosticDashboard = () => {
       });
       
       setPhoneVerificationStatus(null);
+      setPatientId(null);
       
       toast({
         title: "Success",
