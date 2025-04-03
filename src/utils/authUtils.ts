@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
 
 interface AuthUser {
   id: string;
@@ -24,7 +25,7 @@ export const registerUser = async (
   try {
     // Register the user with Supabase
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: `${phone}@medivault.com`, // Using phone as part of email since Supabase requires email
+      phone,
       password,
       options: {
         data: {
@@ -46,15 +47,17 @@ export const registerUser = async (
     
     // Create profile entry
     if (authData.user) {
+      const profileData: ProfileInsert = {
+        id: authData.user.id,
+        phone,
+        user_type: userType,
+        full_name: fullName,
+        center_name: centerName
+      };
+      
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
-          id: authData.user.id,
-          phone,
-          user_type: userType,
-          full_name: fullName,
-          center_name: centerName
-        });
+        .insert(profileData);
       
       if (profileError) {
         console.error("Profile creation error:", profileError);
@@ -84,9 +87,9 @@ export const loginUser = async (
   password: string
 ): Promise<{ success: boolean; message: string; userType?: 'patient' | 'center' }> => {
   try {
-    // Sign in with Supabase
+    // Sign in with Supabase using phone
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: `${phone}@medivault.com`, // Using phone as part of email
+      phone,
       password
     });
     
