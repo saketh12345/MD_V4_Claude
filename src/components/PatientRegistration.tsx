@@ -40,10 +40,10 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
         p_email: email || null
       };
       
-      // Using any to bypass type checking for the RPC call
-      const { data, error } = await (supabase
-        .rpc('insert_patient', params)
-        .single() as any);
+      // Using type assertion for the RPC call
+      const { data, error } = await supabase
+        .rpc('insert_patient', params as any)
+        .single();
         
       if (error) {
         throw error;

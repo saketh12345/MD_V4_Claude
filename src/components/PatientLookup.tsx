@@ -28,10 +28,10 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
       // Cast parameter object to the proper type
       const params: GetPatientByPhoneParams = { phone: phoneNumber };
       
-      // Using any to bypass type checking for the RPC call
-      const { data, error } = await (supabase
-        .rpc('get_patient_by_phone', params)
-        .maybeSingle() as any);
+      // Using type assertion for the RPC call
+      const { data, error } = await supabase
+        .rpc('get_patient_by_phone', params as any)
+        .maybeSingle();
         
       if (error) {
         throw error;

@@ -61,10 +61,10 @@ const PatientDashboard = () => {
         // Cast parameter object to the proper type
         const params: GetPatientByPhoneParams = { phone: currentUser.phone };
         
-        // Using any to bypass type checking for the RPC call
-        const { data: patientData, error: patientError } = await (supabase
-          .rpc('get_patient_by_phone', params)
-          .maybeSingle() as any);
+        // Using type assertion for the RPC call
+        const { data: patientData, error: patientError } = await supabase
+          .rpc('get_patient_by_phone', params as any)
+          .maybeSingle();
           
         if (patientError) {
           console.error("Error finding patient record:", patientError);
