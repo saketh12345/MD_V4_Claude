@@ -21,6 +21,7 @@ import PatientSettings from "./pages/PatientSettings";
 import DiagnosticSettings from "./pages/DiagnosticSettings";
 import { useEffect } from "react";
 import { setupStoragePolicies } from "./integrations/supabase/createStoragePolicies";
+import { toast } from "./components/ui/use-toast";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,12 @@ const App = () => {
         console.log("Storage policies setup successfully");
       } else {
         console.error("Failed to setup storage policies:", result.error);
+        // Let the user know if there's an issue
+        toast({
+          title: "Storage Setup Warning",
+          description: "Some file storage features may not work properly. Please try again later.",
+          variant: "destructive",
+        });
       }
     });
   }, []);
