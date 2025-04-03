@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, Download, Share2, FileText } from "lucide-react";
@@ -61,7 +62,7 @@ const PatientDashboard = () => {
         const params: GetPatientByPhoneParams = { phone: currentUser.phone };
         
         const { data: patientData, error: patientError } = await supabase
-          .rpc<PatientResponse>('get_patient_by_phone', params)
+          .rpc<PatientResponse, GetPatientByPhoneParams>('get_patient_by_phone', params)
           .maybeSingle();
           
         if (patientError) {

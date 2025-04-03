@@ -29,7 +29,7 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
       const params: GetPatientByPhoneParams = { phone: phoneNumber };
       
       const { data, error } = await supabase
-        .rpc<PatientResponse>('get_patient_by_phone', params)
+        .rpc<PatientResponse, GetPatientByPhoneParams>('get_patient_by_phone', params)
         .maybeSingle();
         
       if (error) {
