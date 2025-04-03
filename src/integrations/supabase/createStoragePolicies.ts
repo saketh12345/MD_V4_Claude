@@ -8,8 +8,9 @@ export const setupStoragePolicies = async () => {
     console.log("Setting up storage for the reports bucket...");
     
     // Check if user is authenticated before attempting storage operations
-    const { data: session } = await supabase.auth.getSession();
-    const isAuthenticated = !!session?.user;
+    const { data: sessionData } = await supabase.auth.getSession();
+    // Safely check if the session exists and has a user property
+    const isAuthenticated = !!sessionData?.session?.user;
     
     if (!isAuthenticated) {
       console.log("User not authenticated, skipping storage setup");
