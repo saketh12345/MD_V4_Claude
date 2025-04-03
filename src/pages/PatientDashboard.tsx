@@ -9,7 +9,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { format } from "date-fns";
 import ReportUpload from "@/components/ReportUpload";
 import { Button } from "@/components/ui/button";
-import { FileIcon, RefreshCw } from "lucide-react";
+import { FileIcon, RefreshCw, Download } from "lucide-react";
 
 interface Report {
   id: string;
@@ -218,6 +218,89 @@ const PatientDashboard = () => {
     }
   };
 
+  // Function to download report
+  const downloadReport = async (fileUrl: string | undefined, reportName: string) => {
+    if (!fileUrl) {
+      toast({
+        title: "Error",
+        description: "No file available for this report",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setViewError("");
+    
+    try {
+      console.log("Attempting to download file:", fileUrl);
+      
+      // Ensure the bucket exists before trying to access the file
+      const bucketExists = await ensureReportsBucketExists();
+      if (!bucketExists) {
+        throw new Error("Could not access the reports storage. Please try again later.");
+      }
+
+      // Try to get a signed URL for downloading
+      const { data, error } = await supabase.storage
+        .from('reports')
+        .createSignedUrl(fileUrl, 60);
+      
+      if (error) {
+        console.error("Error getting signed URL for download:", error);
+        
+        // Try to get public URL as a fallback
+        const { data: publicUrlData } = supabase.storage
+          .from('reports')
+          .getPublicUrl(fileUrl);
+          
+        if (publicUrlData && publicUrlData.publicUrl) {
+          console.log("Using public URL for download instead:", publicUrlData.publicUrl);
+          
+          // Create a link element and initiate download
+          const link = document.createElement('a');
+          link.href = publicUrlData.publicUrl;
+          link.download = `${reportName}.pdf`; // Assuming PDF, adjust if needed
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          return;
+        }
+        
+        // If we get here, both methods failed
+        throw new Error(`Could not generate download link for this report: ${error.message}`);
+      }
+      
+      if (!data || !data.signedUrl) {
+        throw new Error("No valid URL generated for this report");
+      }
+      
+      // Create a link element and initiate download
+      const link = document.createElement('a');
+      link.href = data.signedUrl;
+      link.download = `${reportName}.pdf`; // Assuming PDF, adjust if needed
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Download started",
+        description: "Your report is being downloaded",
+      });
+    } catch (error) {
+      console.error('Error downloading report file:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : "Could not download the report file";
+      setViewError(errorMessage);
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <DashboardLayout
       title={`Hello, ${patientName}`}
@@ -266,15 +349,26 @@ const PatientDashboard = () => {
                         <TableCell>{report.lab}</TableCell>
                         <TableCell>{format(new Date(report.date), 'MMM d, yyyy')}</TableCell>
                         <TableCell>
-                          <Button 
-                            onClick={() => viewReport(report.file_url)}
-                            variant="ghost" 
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                          >
-                            <FileIcon className="h-4 w-4" />
-                            View Report
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={() => viewReport(report.file_url)}
+                              variant="ghost" 
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                            >
+                              <FileIcon className="h-4 w-4" />
+                              View
+                            </Button>
+                            <Button 
+                              onClick={() => downloadReport(report.file_url, report.name)}
+                              variant="ghost" 
+                              size="sm"
+                              className="text-green-600 hover:text-green-800 flex items-center gap-1"
+                            >
+                              <Download className="h-4 w-4" />
+                              Download
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
