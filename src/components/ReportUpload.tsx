@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -28,24 +27,26 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
   // Check authentication on component mount
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session?.user);
+      setIsCheckingAuth(true);
+      try {
+        // Use getCurrentUser instead of just checking session
+        // This is more reliable as it checks for an actual user profile
+        const user = await getCurrentUser();
+        setIsAuthenticated(!!user);
+      } catch (error) {
+        console.error("Error checking authentication:", error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsCheckingAuth(false);
+      }
     };
     
     checkAuth();
-    
-    // Subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      setIsAuthenticated(event === 'SIGNED_IN');
-    });
-    
-    return () => {
-      subscription.unsubscribe();
-    };
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,6 +263,16 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       setIsUploading(false);
     }
   };
+
+  // Show loading state while checking authentication
+  if (isCheckingAuth) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+        <span className="ml-2">Checking authentication...</span>
+      </div>
+    );
+  }
 
   // Show warning if not authenticated
   if (!isAuthenticated) {

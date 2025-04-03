@@ -32,6 +32,7 @@ export const setupStoragePolicies = async () => {
     
     if (!reportsBucketExists) {
       console.log("Creating reports bucket...");
+      // Try to create the bucket with full public access for testing
       const { error: createError } = await supabase.storage.createBucket('reports', {
         public: true, // Make the bucket public
         fileSizeLimit: 50000000 // 50MB limit
@@ -58,7 +59,7 @@ export const setupStoragePolicies = async () => {
     
     if (testError) {
       console.warn("Storage access test warning:", testError);
-      console.log("Storage policies may need additional configuration");
+      console.log("Storage policies may need additional configuration in Supabase dashboard");
     } else {
       console.log("Storage access test successful");
     }
