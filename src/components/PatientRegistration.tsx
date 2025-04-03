@@ -37,7 +37,7 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
     setIsSubmitting(true);
     
     try {
-      // Create patient record using raw query to handle type mismatch
+      // Create patient record using RPC
       const { data, error } = await supabase
         .rpc('insert_patient', {
           p_name: name,
@@ -55,7 +55,7 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
         description: "Patient registered successfully"
       });
       
-      const patientData = data as PatientResponse;
+      const patientData = data as unknown as PatientResponse;
       if (patientData && patientData.id) {
         onSuccess(patientData.id, patientData.name);
       }

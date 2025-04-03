@@ -26,11 +26,15 @@ const ReportUploadFormContent: React.FC<ReportUploadFormProps> = ({ centerName, 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formState.patientId || !formState.labId) {
+      return; // Button should be disabled in this case anyway
+    }
+    
     const success = await uploadReport({
       name: formState.name,
       type: formState.type,
-      patientId: formState.patientId!,
-      labId: formState.labId!,
+      patientId: formState.patientId,
+      labId: formState.labId,
       centerName,
       file: formState.file
     });

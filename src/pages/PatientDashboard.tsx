@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, Download, Share2, FileText } from "lucide-react";
@@ -8,9 +7,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/utils/authUtils";
 import { supabase } from "@/integrations/supabase/client";
-import { Database } from "@/integrations/supabase/types";
 
-type ReportRow = Database['public']['Tables']['reports']['Row'];
+interface PatientData {
+  id: string;
+  name: string;
+}
 
 interface Report {
   id: string;
@@ -18,7 +19,7 @@ interface Report {
   date: string;
   lab: string;
   type: string;
-  file_url: string;
+  file_url: string | null;
 }
 
 const PatientDashboard = () => {
@@ -52,7 +53,7 @@ const PatientDashboard = () => {
       
       setUserId(currentUser.id);
       
-      // First, try to find the patient record via a custom RPC
+      // Try to find the patient record via a custom RPC
       try {
         const { data: patientData, error: patientError } = await supabase
           .rpc('get_patient_by_phone', { phone: currentUser.phone })
@@ -70,7 +71,7 @@ const PatientDashboard = () => {
         
         if (patientData) {
           // TypeScript needs the explicit cast here
-          const patient = patientData as { id: string, name: string };
+          const patient = patientData as unknown as PatientData;
           setPatientId(patient.id);
           fetchReports(patient.id);
         } else {
@@ -130,13 +131,13 @@ const PatientDashboard = () => {
       }
       
       if (data) {
-        const formattedReports = data.map((report: ReportRow) => ({
+        const formattedReports = data.map((report) => ({
           id: report.id,
           name: report.name,
           date: new Date(report.created_at).toLocaleDateString(),
           lab: report.lab,
           type: report.type,
-          file_url: report.file_url || '#'
+          file_url: report.file_url
         }));
         
         setReports(formattedReports);
@@ -155,7 +156,7 @@ const PatientDashboard = () => {
 
   // Handle view report
   const handleViewReport = (report: Report) => {
-    if (report.file_url && report.file_url !== '#') {
+    if (report.file_url) {
       window.open(report.file_url, '_blank');
     } else {
       toast({
@@ -167,7 +168,7 @@ const PatientDashboard = () => {
 
   // Handle download report
   const handleDownloadReport = (report: Report) => {
-    if (report.file_url && report.file_url !== '#') {
+    if (report.file_url) {
       const link = document.createElement('a');
       link.href = report.file_url;
       link.download = report.name;
@@ -184,7 +185,7 @@ const PatientDashboard = () => {
 
   // Handle share report
   const handleShareReport = (report: Report) => {
-    if (navigator.share && report.file_url && report.file_url !== '#') {
+    if (navigator.share && report.file_url) {
       navigator.share({
         title: report.name,
         text: `Check out my medical report from ${report.lab}`,

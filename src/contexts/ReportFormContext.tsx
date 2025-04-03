@@ -8,6 +8,7 @@ interface ReportFormState {
   patientId: string | null;
   patientName: string | null;
   labId: string | null;
+  setPatient: (id: string, name: string | null) => void;
 }
 
 interface ReportFormContextType {
@@ -20,42 +21,49 @@ interface ReportFormContextType {
   resetForm: () => void;
 }
 
-const initialState: ReportFormState = {
+const initialState = {
   name: "",
   type: "Blood Test",
   file: null,
   patientId: null,
   patientName: null,
-  labId: null
+  labId: null,
+  setPatient: () => {}  // This is a placeholder; actual implementation is in context provider
 };
 
 const ReportFormContext = createContext<ReportFormContextType | undefined>(undefined);
 
 export const ReportFormProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [formState, setFormState] = useState<ReportFormState>(initialState);
+  const [state, setState] = useState(initialState);
 
   const setName = (name: string) => {
-    setFormState(prev => ({ ...prev, name }));
+    setState(prev => ({ ...prev, name }));
   };
 
   const setType = (type: string) => {
-    setFormState(prev => ({ ...prev, type }));
+    setState(prev => ({ ...prev, type }));
   };
 
   const setFile = (file: File | null) => {
-    setFormState(prev => ({ ...prev, file }));
+    setState(prev => ({ ...prev, file }));
   };
 
   const setPatient = (id: string, name: string | null) => {
-    setFormState(prev => ({ ...prev, patientId: id, patientName: name }));
+    setState(prev => ({ ...prev, patientId: id, patientName: name }));
   };
 
   const setLabId = (id: string | null) => {
-    setFormState(prev => ({ ...prev, labId: id }));
+    setState(prev => ({ ...prev, labId: id }));
   };
 
   const resetForm = () => {
-    setFormState(initialState);
+    setState(initialState);
+  };
+
+  // Create a formState object that includes the state values and the setPatient method
+  const formState: ReportFormState = {
+    ...state,
+    setPatient
   };
 
   return (

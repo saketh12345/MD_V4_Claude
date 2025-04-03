@@ -38,7 +38,7 @@ const PatientLookup = ({ onPatientFound }: PatientLookupProps) => {
     setShowRegistration(false);
     
     try {
-      // Search for patient by phone number using raw query to handle type mismatch
+      // Use RPC function to get patient by phone
       const { data, error } = await supabase
         .rpc('get_patient_by_phone', { phone: phoneNumber.trim() })
         .maybeSingle();
@@ -50,7 +50,7 @@ const PatientLookup = ({ onPatientFound }: PatientLookupProps) => {
       
       if (data) {
         // Patient found
-        const patientData = data as PatientData;
+        const patientData = data as unknown as PatientData;
         onPatientFound(patientData.id, patientData.name);
         toast({
           title: "Patient found",

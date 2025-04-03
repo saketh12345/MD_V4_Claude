@@ -51,7 +51,7 @@ export const useReportUpload = (onSuccess: () => void) => {
         }
       }
       
-      // Create report record using RPC to handle type mismatch
+      // Create report record using RPC
       const { error: reportError } = await supabase
         .rpc('insert_report', {
           r_name: name,

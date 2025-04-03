@@ -7,6 +7,10 @@ interface LabInitializerProps {
   centerName: string;
 }
 
+interface LabResponse {
+  id: string;
+}
+
 const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
   const { setLabId } = useReportForm();
 
@@ -25,7 +29,8 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
         }
         
         if (data) {
-          setLabId(data.id);
+          const labData = data as unknown as LabResponse;
+          setLabId(labData.id);
         }
       } catch (err) {
         console.error("Lab creation error:", err);
