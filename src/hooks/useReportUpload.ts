@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,16 +60,18 @@ export const useReportUpload = (onSuccess: () => void) => {
         }
       }
       
-      // Use type assertion to fix the "never" type error
+      // Cast parameter object to the proper type
+      const params = {
+        r_name: name,
+        r_type: type,
+        r_lab: centerName,
+        r_patient_id: patientId,
+        r_file_url: fileUrl,
+        r_uploaded_by: labId
+      } as InsertReportParams;
+      
       const { error: reportError } = await supabase
-        .rpc('insert_report', {
-          r_name: name,
-          r_type: type,
-          r_lab: centerName,
-          r_patient_id: patientId,
-          r_file_url: fileUrl,
-          r_uploaded_by: labId
-        } as InsertReportParams);
+        .rpc('insert_report', params);
         
       if (reportError) {
         throw reportError;

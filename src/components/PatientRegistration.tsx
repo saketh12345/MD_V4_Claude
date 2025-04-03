@@ -44,13 +44,15 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
     setIsSubmitting(true);
     
     try {
-      // Use type assertion to fix the "never" type error
+      // Cast parameter object to the proper type
+      const params = {
+        p_name: name,
+        p_phone: phoneNumber,
+        p_email: email || null
+      } as InsertPatientParams;
+      
       const { data, error } = await supabase
-        .rpc('insert_patient', {
-          p_name: name,
-          p_phone: phoneNumber,
-          p_email: email || null
-        } as InsertPatientParams)
+        .rpc('insert_patient', params)
         .single();
         
       if (error) {
