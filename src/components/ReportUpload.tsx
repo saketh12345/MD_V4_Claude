@@ -17,6 +17,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isCheckingBucket, setIsCheckingBucket] = useState(false);
   const [patientPhone, setPatientPhone] = useState("");
   const [patientName, setPatientName] = useState("");
   const [patientId, setPatientId] = useState<string | null>(null);
@@ -31,6 +32,47 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
+    }
+  };
+
+  // Check if the reports bucket exists, and create it if needed
+  const ensureReportsBucketExists = async () => {
+    setIsCheckingBucket(true);
+    try {
+      // First, check if the bucket exists
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+      
+      if (listError) {
+        setDebugInfo(`Bucket list error: ${JSON.stringify(listError, null, 2)}`);
+        throw new Error(`Failed to check if reports bucket exists: ${listError.message}`);
+      }
+      
+      const reportsBucketExists = buckets?.some(bucket => bucket.name === 'reports');
+      
+      if (!reportsBucketExists) {
+        console.log("Reports bucket does not exist, creating it now...");
+        const { data, error } = await supabase.storage.createBucket('reports', {
+          public: true,
+          fileSizeLimit: 50000000 // 50MB limit
+        });
+        
+        if (error) {
+          setDebugInfo(`Bucket creation error: ${JSON.stringify(error, null, 2)}`);
+          throw new Error(`Failed to create reports bucket: ${error.message}`);
+        }
+        
+        console.log("Reports bucket created successfully:", data);
+      } else {
+        console.log("Reports bucket already exists");
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error ensuring reports bucket exists:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to initialize storage bucket");
+      return false;
+    } finally {
+      setIsCheckingBucket(false);
     }
   };
 
@@ -102,6 +144,12 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
     setDebugInfo(null);
 
     try {
+      // First, ensure the reports bucket exists
+      const bucketReady = await ensureReportsBucketExists();
+      if (!bucketReady) {
+        throw new Error("Failed to initialize storage for upload. Please try again.");
+      }
+
       // Verify patient exists before attempting upload
       const { data: patientCheck, error: patientError } = await supabase
         .from("patients")
@@ -115,22 +163,12 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
         throw new Error(`Patient not found. Please verify the patient exists. Details: ${errorDetails}`);
       }
 
-      // Create a unique filename
+      // Create a unique filename to avoid conflicts
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `reports/${fileName}`;
 
-      // Create the reports bucket if it doesn't exist (this will be ignored if it exists)
-      try {
-        await supabase.storage.createBucket('reports', {
-          public: true,
-          fileSizeLimit: 50000000 // 50MB limit
-        });
-        console.log("Bucket check completed");
-      } catch (bucketError) {
-        // If bucket already exists, this is fine
-        console.log("Bucket already exists or error creating bucket:", bucketError);
-      }
+      console.log(`Attempting to upload file ${fileName} to reports bucket...`);
 
       // Upload file to Supabase storage
       const { error: uploadError, data: uploadData } = await supabase.storage
@@ -186,7 +224,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
     } catch (error) {
       console.error("Upload error:", error);
       setErrorMessage(error instanceof Error ? error.message : "Unknown error occurred");
-      if (!setDebugInfo) {
+      if (!debugInfo) {
         setDebugInfo(JSON.stringify(error, null, 2));
       }
       toast({
@@ -316,15 +354,15 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
 
         <Button 
           onClick={uploadReport} 
-          disabled={isUploading || !file || !patientId || !reportName || !reportType || !labName}
+          disabled={isUploading || isCheckingBucket || !file || !patientId || !reportName || !reportType || !labName}
           className="w-full flex items-center gap-2"
         >
-          {isUploading ? (
+          {(isUploading || isCheckingBucket) ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <FileUp className="h-4 w-4" />
           )}
-          {isUploading ? "Uploading..." : "Upload Report"}
+          {isCheckingBucket ? "Checking storage..." : isUploading ? "Uploading..." : "Upload Report"}
         </Button>
       </div>
     </div>

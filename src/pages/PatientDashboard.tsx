@@ -107,16 +107,41 @@ const PatientDashboard = () => {
     }
 
     try {
-      // Ensure the reports bucket exists
-      await supabase.storage.createBucket('reports', {
-        public: true,
-        fileSizeLimit: 50000000 // 50MB limit
-      }).catch(err => {
-        // Bucket might already exist, which is fine
-        console.log("Bucket check:", err);
-      });
+      console.log("Attempting to access file:", fileUrl);
+      
+      // Check if bucket exists and create if needed
+      try {
+        const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+        
+        if (listError) {
+          console.error("Error listing buckets:", listError);
+          throw new Error(`Failed to check storage buckets: ${listError.message}`);
+        }
+        
+        const reportsBucketExists = buckets?.some(bucket => bucket.name === 'reports');
+        
+        if (!reportsBucketExists) {
+          console.log("Reports bucket does not exist, creating it now...");
+          const { error: createError } = await supabase.storage.createBucket('reports', {
+            public: true,
+            fileSizeLimit: 50000000 // 50MB limit
+          });
+          
+          if (createError) {
+            console.error("Error creating bucket:", createError);
+            throw new Error(`Failed to create reports bucket: ${createError.message}`);
+          }
+          
+          console.log("Reports bucket created successfully");
+        } else {
+          console.log("Reports bucket exists");
+        }
+      } catch (bucketError) {
+        console.error("Bucket operation error:", bucketError);
+        // Continue anyway, try to get the file
+      }
 
-      // First try to get a signed URL (for private files)
+      // Try to get a signed URL (for private files)
       const { data, error } = await supabase.storage
         .from('reports')
         .createSignedUrl(fileUrl, 60);
@@ -130,11 +155,13 @@ const PatientDashboard = () => {
           .getPublicUrl(fileUrl);
           
         if (publicUrlData && publicUrlData.publicUrl) {
+          console.log("Using public URL instead:", publicUrlData.publicUrl);
           window.open(publicUrlData.publicUrl, '_blank');
           return;
         }
         
-        throw new Error("Could not generate access link for this report");
+        // If we get here, both methods failed
+        throw new Error(`Could not generate access link for this report: ${error.message}`);
       }
       
       if (!data || !data.signedUrl) {
@@ -142,6 +169,7 @@ const PatientDashboard = () => {
       }
       
       // Open the signed URL in a new tab
+      console.log("Opening signed URL:", data.signedUrl);
       window.open(data.signedUrl, '_blank');
     } catch (error) {
       console.error('Error getting report file:', error);
