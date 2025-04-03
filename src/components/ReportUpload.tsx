@@ -26,6 +26,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -47,6 +48,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
     setPatientId(null);
     setPatientName("");
     setErrorMessage(null);
+    setDebugInfo(null);
 
     try {
       const { data, error } = await supabase
@@ -73,6 +75,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       }
     } catch (error) {
       console.error("Error searching for patient:", error);
+      setDebugInfo(JSON.stringify(error, null, 2));
       toast({
         title: "Search Error",
         description: "Failed to search for patient",
@@ -96,6 +99,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
     setIsUploading(true);
     setShowSuccess(false);
     setErrorMessage(null);
+    setDebugInfo(null);
 
     try {
       // Verify patient exists before attempting upload
@@ -106,7 +110,9 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
         .single();
 
       if (patientError || !patientCheck) {
-        throw new Error("Patient not found. Please verify the patient exists.");
+        const errorDetails = JSON.stringify(patientError, null, 2);
+        setDebugInfo(`Patient verification error: ${errorDetails}`);
+        throw new Error(`Patient not found. Please verify the patient exists. Details: ${errorDetails}`);
       }
 
       // Create a unique filename
@@ -115,24 +121,28 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       const filePath = `reports/${fileName}`;
 
       // Create the reports bucket if it doesn't exist (this will be ignored if it exists)
-      await supabase.storage.createBucket('reports', {
-        public: true,
-        fileSizeLimit: 50000000 // 50MB limit
-      });
+      try {
+        await supabase.storage.createBucket('reports', {
+          public: true,
+          fileSizeLimit: 50000000 // 50MB limit
+        });
+        console.log("Bucket check completed");
+      } catch (bucketError) {
+        // If bucket already exists, this is fine
+        console.log("Bucket already exists or error creating bucket:", bucketError);
+      }
 
       // Upload file to Supabase storage
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from("reports")
         .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        setDebugInfo(`File upload error: ${JSON.stringify(uploadError, null, 2)}`);
+        throw uploadError;
+      }
 
-      // Get the public URL for the file
-      const { data: publicUrlData } = supabase.storage
-        .from("reports")
-        .getPublicUrl(filePath);
-
-      const publicUrl = publicUrlData?.publicUrl;
+      console.log("File uploaded successfully:", uploadData);
       
       const currentUser = await getCurrentUser();
 
@@ -141,7 +151,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       }
 
       // Create a report record
-      const { error: reportError } = await supabase.from("reports").insert({
+      const { error: reportError, data: reportData } = await supabase.from("reports").insert({
         patient_id: patientId,
         name: reportName,
         type: reportType,
@@ -149,9 +159,14 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
         file_url: filePath, // Store the path, not the full URL
         uploaded_by: currentUser.id,
         date: new Date().toISOString().split("T")[0],
-      });
+      }).select();
 
-      if (reportError) throw reportError;
+      if (reportError) {
+        setDebugInfo(`Report creation error: ${JSON.stringify(reportError, null, 2)}`);
+        throw reportError;
+      }
+
+      console.log("Report record created:", reportData);
 
       // Reset form and show success
       setReportName("");
@@ -171,6 +186,9 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
     } catch (error) {
       console.error("Upload error:", error);
       setErrorMessage(error instanceof Error ? error.message : "Unknown error occurred");
+      if (!setDebugInfo) {
+        setDebugInfo(JSON.stringify(error, null, 2));
+      }
       toast({
         title: "Upload Failed",
         description: error instanceof Error ? error.message : "Unknown error occurred",
@@ -195,8 +213,17 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       {errorMessage && (
         <Alert className="bg-red-50 border-red-200 mb-4" variant="destructive">
           <AlertTitle>Upload Failed</AlertTitle>
-          <AlertDescription>
+          <AlertDescription className="whitespace-pre-wrap">
             {errorMessage}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {debugInfo && (
+        <Alert className="bg-yellow-50 border-yellow-200 mb-4">
+          <AlertTitle className="text-yellow-800">Debug Information</AlertTitle>
+          <AlertDescription className="text-yellow-700 whitespace-pre-wrap overflow-auto max-h-60">
+            {debugInfo}
           </AlertDescription>
         </Alert>
       )}
