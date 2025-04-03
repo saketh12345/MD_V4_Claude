@@ -34,10 +34,10 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
     // Find or create the lab entry for this diagnostic center
     const findOrCreateLab = async () => {
       try {
-        // Use any type to bypass TypeScript's strict checking for custom RPC functions
-        const { data, error } = await (supabase
+        // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
+        const { data, error } = await supabase
           .rpc('find_or_create_lab', { lab_name: centerName } as any)
-          .single() as any);
+          .single();
         
         if (error) {
           console.error("Error with lab:", error);
@@ -131,8 +131,8 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
         }
       }
       
-      // Use any type to bypass TypeScript's strict checking for custom RPC functions
-      const { error: reportError } = await (supabase
+      // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
+      const { error: reportError } = await supabase
         .rpc('insert_report', {
           r_name: reportForm.name,
           r_type: reportForm.type,
@@ -140,7 +140,7 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
           r_patient_id: patientId,
           r_file_url: fileUrl,
           r_uploaded_by: labId
-        } as any) as any);
+        } as any);
         
       if (reportError) {
         throw reportError;

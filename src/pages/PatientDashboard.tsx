@@ -56,10 +56,10 @@ const PatientDashboard = () => {
       
       // Try to find the patient record via a custom RPC
       try {
-        // Use any type to bypass TypeScript's strict checking for custom RPC functions
-        const { data: patientData, error: patientError } = await (supabase
+        // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
+        const { data: patientData, error: patientError } = await supabase
           .rpc('get_patient_by_phone', { phone: currentUser.phone } as any)
-          .maybeSingle() as any);
+          .maybeSingle();
           
         if (patientError) {
           console.error("Error finding patient record:", patientError);
@@ -266,7 +266,16 @@ const PatientDashboard = () => {
                               size="sm" 
                               className="p-0 w-8 h-8" 
                               title="View"
-                              onClick={() => handleViewReport(report)}
+                              onClick={() => {
+                                if (report.file_url) {
+                                  window.open(report.file_url, '_blank');
+                                } else {
+                                  toast({
+                                    title: "Viewing Report",
+                                    description: `Opening ${report.name}`
+                                  });
+                                }
+                              }}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -275,7 +284,21 @@ const PatientDashboard = () => {
                               size="sm" 
                               className="p-0 w-8 h-8" 
                               title="Download"
-                              onClick={() => handleDownloadReport(report)}
+                              onClick={() => {
+                                if (report.file_url) {
+                                  const link = document.createElement('a');
+                                  link.href = report.file_url;
+                                  link.download = report.name;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                } else {
+                                  toast({
+                                    title: "Downloading Report",
+                                    description: `Downloading ${report.name}`
+                                  });
+                                }
+                              }}
                             >
                               <Download className="h-4 w-4" />
                             </Button>
@@ -284,7 +307,22 @@ const PatientDashboard = () => {
                               size="sm" 
                               className="p-0 w-8 h-8" 
                               title="Share"
-                              onClick={() => handleShareReport(report)}
+                              onClick={() => {
+                                if (navigator.share && report.file_url) {
+                                  navigator.share({
+                                    title: report.name,
+                                    text: `Check out my medical report from ${report.lab}`,
+                                    url: report.file_url
+                                  }).catch(error => {
+                                    console.error("Share error:", error);
+                                  });
+                                } else {
+                                  toast({
+                                    title: "Share Report",
+                                    description: `Sharing options for ${report.name}`
+                                  });
+                                }
+                              }}
                             >
                               <Share2 className="h-4 w-4" />
                             </Button>

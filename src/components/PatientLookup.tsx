@@ -38,10 +38,10 @@ const PatientLookup = ({ onPatientFound }: PatientLookupProps) => {
     setShowRegistration(false);
     
     try {
-      // Use any type to bypass TypeScript's strict checking for custom RPC functions
-      const { data, error } = await (supabase
+      // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
+      const { data, error } = await supabase
         .rpc('get_patient_by_phone', { phone: phoneNumber.trim() } as any)
-        .maybeSingle() as any);
+        .maybeSingle();
       
       if (error) {
         console.error("Patient search error:", error);

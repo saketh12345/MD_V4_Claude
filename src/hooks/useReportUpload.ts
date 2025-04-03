@@ -51,8 +51,8 @@ export const useReportUpload = (onSuccess: () => void) => {
         }
       }
       
-      // Use any type to bypass TypeScript's strict checking for custom RPC functions
-      const { error: reportError } = await (supabase
+      // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
+      const { error: reportError } = await supabase
         .rpc('insert_report', {
           r_name: name,
           r_type: type,
@@ -60,7 +60,7 @@ export const useReportUpload = (onSuccess: () => void) => {
           r_patient_id: patientId,
           r_file_url: fileUrl,
           r_uploaded_by: labId
-        } as any) as any);
+        } as any);
         
       if (reportError) {
         throw reportError;
