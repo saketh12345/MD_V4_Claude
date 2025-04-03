@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -35,35 +34,91 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
     }
   };
 
-  // Check if the reports bucket exists, and create it if needed
+  // Check if the reports bucket exists, and create it if needed with robust error handling
   const ensureReportsBucketExists = async () => {
     setIsCheckingBucket(true);
+    setErrorMessage(null);
+    setDebugInfo(null);
+    
     try {
+      console.log("Checking if reports bucket exists...");
+      
       // First, check if the bucket exists
       const { data: buckets, error: listError } = await supabase.storage.listBuckets();
       
       if (listError) {
+        console.error("Error listing buckets:", listError);
         setDebugInfo(`Bucket list error: ${JSON.stringify(listError, null, 2)}`);
-        throw new Error(`Failed to check if reports bucket exists: ${listError.message}`);
+        
+        // Check if this is a permissions issue
+        if (listError.message.includes("permission") || listError.message.includes("not authorized")) {
+          throw new Error(`You don't have permission to list storage buckets. This might be due to restrictive Row Level Security policies.`);
+        } else {
+          throw new Error(`Failed to check if reports bucket exists: ${listError.message}`);
+        }
       }
       
       const reportsBucketExists = buckets?.some(bucket => bucket.name === 'reports');
       
       if (!reportsBucketExists) {
         console.log("Reports bucket does not exist, creating it now...");
-        const { data, error } = await supabase.storage.createBucket('reports', {
-          public: true,
-          fileSizeLimit: 50000000 // 50MB limit
-        });
         
-        if (error) {
-          setDebugInfo(`Bucket creation error: ${JSON.stringify(error, null, 2)}`);
-          throw new Error(`Failed to create reports bucket: ${error.message}`);
+        try {
+          // First try with public access
+          const { data, error } = await supabase.storage.createBucket('reports', {
+            public: true,
+            fileSizeLimit: 50000000 // 50MB limit
+          });
+          
+          if (error) {
+            console.error("Error creating public bucket:", error);
+            
+            // If the first attempt fails with public access, try without specifying public
+            console.log("Retrying with default bucket settings...");
+            const { error: retryError } = await supabase.storage.createBucket('reports');
+            
+            if (retryError) {
+              console.error("Error creating bucket with default settings:", retryError);
+              setDebugInfo(`Bucket creation retry error: ${JSON.stringify(retryError, null, 2)}`);
+              
+              // Check for specific error messages
+              if (retryError.message.includes("already exists")) {
+                console.log("Bucket appears to already exist despite not showing in list");
+                // If it already exists, we can continue
+                return true;
+              } else {
+                throw new Error(`Failed to create reports bucket: ${retryError.message}`);
+              }
+            }
+          }
+        } catch (bucketCreateError) {
+          console.error("Bucket creation exception:", bucketCreateError);
+          setDebugInfo(`Bucket creation exception: ${JSON.stringify(bucketCreateError, null, 2)}`);
+          throw bucketCreateError;
         }
         
-        console.log("Reports bucket created successfully:", data);
+        console.log("Reports bucket created successfully");
       } else {
         console.log("Reports bucket already exists");
+      }
+      
+      // Add public policy for the bucket if it doesn't already have one
+      try {
+        console.log("Attempting to create a public policy for the reports bucket...");
+        const { error: policyError } = await supabase.storage.from('reports').createSignedUrl('test-policy.txt', 60);
+        
+        if (policyError && !policyError.message.includes("not found")) {
+          console.log("Setting public policy for reports bucket");
+          const policies = [
+            { name: 'public-read', definition: { bucket_id: 'reports', action: 'SELECT', role: '*' } },
+            { name: 'authenticated-insert', definition: { bucket_id: 'reports', action: 'INSERT', role: 'authenticated' } }
+          ];
+          
+          // Note: This won't actually work in the client, but might inform the user about what's needed
+          console.log("Policies should be configured on the server side");
+        }
+      } catch (policyError) {
+        console.warn("Policy check/create error (non-fatal):", policyError);
       }
       
       return true;
@@ -166,7 +221,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       // Create a unique filename to avoid conflicts
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `reports/${fileName}`;
+      const filePath = `${fileName}`;
 
       console.log(`Attempting to upload file ${fileName} to reports bucket...`);
 

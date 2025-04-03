@@ -31,6 +31,7 @@ const PatientDashboard = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [userType, setUserType] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [viewError, setViewError] = useState<string>("");
   
   const getReports = async (patientId: string) => {
     const { data: reports, error } = await supabase
@@ -49,6 +50,7 @@ const PatientDashboard = () => {
   const refreshReports = async () => {
     if (patientId) {
       setIsRefreshing(true);
+      setViewError("");
       const patientReports = await getReports(patientId);
       setReports(patientReports);
       setIsRefreshing(false);
@@ -57,6 +59,59 @@ const PatientDashboard = () => {
         title: "Reports refreshed",
         description: `${patientReports.length} reports loaded`,
       });
+    }
+  };
+
+  // Check if the reports bucket exists, or create it if needed
+  const ensureReportsBucketExists = async () => {
+    try {
+      // First check if the bucket exists
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+      
+      if (listError) {
+        console.error("Error listing buckets:", listError);
+        throw new Error(`Failed to check storage buckets: ${listError.message}`);
+      }
+      
+      const reportsBucketExists = buckets?.some(bucket => bucket.name === 'reports');
+      
+      if (!reportsBucketExists) {
+        console.log("Reports bucket does not exist, creating it now...");
+        try {
+          // First try with public access
+          const { error: createError } = await supabase.storage.createBucket('reports', {
+            public: true,
+            fileSizeLimit: 50000000 // 50MB limit
+          });
+          
+          if (createError) {
+            console.error("Error creating public bucket:", createError);
+            
+            // If the first attempt fails, try without specifying public
+            const { error: retryError } = await supabase.storage.createBucket('reports');
+            
+            if (retryError) {
+              console.error("Error creating bucket with default settings:", retryError);
+              
+              if (!retryError.message.includes("already exists")) {
+                throw new Error(`Failed to create reports bucket: ${retryError.message}`);
+              }
+            }
+          }
+        } catch (bucketCreateError) {
+          console.error("Bucket creation exception:", bucketCreateError);
+          throw bucketCreateError;
+        }
+        
+        console.log("Reports bucket created successfully");
+      } else {
+        console.log("Reports bucket exists");
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error ensuring bucket exists:", error);
+      return false;
     }
   };
   
@@ -82,6 +137,9 @@ const PatientDashboard = () => {
         setPatientName(currentUser.fullName || "Patient");
         setPatientId(currentUser.id);
         
+        // Ensure storage bucket exists
+        await ensureReportsBucketExists();
+        
         // Fetch patient reports
         if (currentUser.id) {
           const patientReports = await getReports(currentUser.id);
@@ -106,42 +164,18 @@ const PatientDashboard = () => {
       return;
     }
 
+    setViewError("");
+    
     try {
       console.log("Attempting to access file:", fileUrl);
       
-      // Check if bucket exists and create if needed
-      try {
-        const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-        
-        if (listError) {
-          console.error("Error listing buckets:", listError);
-          throw new Error(`Failed to check storage buckets: ${listError.message}`);
-        }
-        
-        const reportsBucketExists = buckets?.some(bucket => bucket.name === 'reports');
-        
-        if (!reportsBucketExists) {
-          console.log("Reports bucket does not exist, creating it now...");
-          const { error: createError } = await supabase.storage.createBucket('reports', {
-            public: true,
-            fileSizeLimit: 50000000 // 50MB limit
-          });
-          
-          if (createError) {
-            console.error("Error creating bucket:", createError);
-            throw new Error(`Failed to create reports bucket: ${createError.message}`);
-          }
-          
-          console.log("Reports bucket created successfully");
-        } else {
-          console.log("Reports bucket exists");
-        }
-      } catch (bucketError) {
-        console.error("Bucket operation error:", bucketError);
-        // Continue anyway, try to get the file
+      // Ensure the bucket exists before trying to access the file
+      const bucketExists = await ensureReportsBucketExists();
+      if (!bucketExists) {
+        throw new Error("Could not access the reports storage. Please try again later.");
       }
 
-      // Try to get a signed URL (for private files)
+      // Try to get a signed URL
       const { data, error } = await supabase.storage
         .from('reports')
         .createSignedUrl(fileUrl, 60);
@@ -173,9 +207,13 @@ const PatientDashboard = () => {
       window.open(data.signedUrl, '_blank');
     } catch (error) {
       console.error('Error getting report file:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : "Could not retrieve the report file";
+      setViewError(errorMessage);
+      
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Could not retrieve the report file",
+        description: errorMessage,
         variant: "destructive"
       });
     }

@@ -19,36 +19,51 @@ import PatientDashboard from "./pages/PatientDashboard";
 import DiagnosticDashboard from "./pages/DiagnosticDashboard";
 import PatientSettings from "./pages/PatientSettings";
 import DiagnosticSettings from "./pages/DiagnosticSettings";
+import { useEffect } from "react";
+import { setupStoragePolicies } from "./integrations/supabase/createStoragePolicies";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/features" element={<FeaturesPage />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/choose-account" element={<ChooseAccountType />} />
-          <Route path="/patient-login" element={<PatientLogin />} />
-          <Route path="/center-login" element={<CenterLogin />} />
-          <Route path="/patient-signup" element={<PatientSignup />} />
-          <Route path="/center-signup" element={<CenterSignup />} />
-          <Route path="/patient-dashboard" element={<PatientDashboard />} />
-          <Route path="/patient-settings" element={<PatientSettings />} />
-          <Route path="/diagnostic-dashboard" element={<DiagnosticDashboard />} />
-          <Route path="/diagnostic-settings" element={<DiagnosticSettings />} />
-          {/* Fallback route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Initialize storage policies on app load
+  useEffect(() => {
+    setupStoragePolicies().then(result => {
+      if (result.success) {
+        console.log("Storage policies setup successfully");
+      } else {
+        console.error("Failed to setup storage policies:", result.error);
+      }
+    });
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/features" element={<FeaturesPage />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/choose-account" element={<ChooseAccountType />} />
+            <Route path="/patient-login" element={<PatientLogin />} />
+            <Route path="/center-login" element={<CenterLogin />} />
+            <Route path="/patient-signup" element={<PatientSignup />} />
+            <Route path="/center-signup" element={<CenterSignup />} />
+            <Route path="/patient-dashboard" element={<PatientDashboard />} />
+            <Route path="/patient-settings" element={<PatientSettings />} />
+            <Route path="/diagnostic-dashboard" element={<DiagnosticDashboard />} />
+            <Route path="/diagnostic-settings" element={<DiagnosticSettings />} />
+            {/* Fallback route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
