@@ -37,14 +37,14 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
     setIsSubmitting(true);
     
     try {
-      // Create patient record using RPC with explicit type assertion for params
-      const { data, error } = await supabase
+      // Use any type to bypass TypeScript's strict checking for custom RPC functions
+      const { data, error } = await (supabase
         .rpc('insert_patient', {
           p_name: name,
           p_phone: phoneNumber,
           p_email: email || null
-        } as {p_name: string, p_phone: string, p_email: string | null})
-        .single();
+        } as any)
+        .single() as any);
         
       if (error) {
         throw error;
@@ -55,8 +55,9 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
         description: "Patient registered successfully"
       });
       
-      const patientData = data as unknown as PatientResponse;
-      if (patientData && patientData.id) {
+      // Type assertion for the response data
+      if (data) {
+        const patientData = data as unknown as PatientResponse;
         onSuccess(patientData.id, patientData.name);
       }
     } catch (error) {

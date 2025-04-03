@@ -18,10 +18,10 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
     // Find or create the lab entry for this diagnostic center
     const findOrCreateLab = async () => {
       try {
-        // Use RPC for type-safe database operations with explicit type assertion
-        const { data, error } = await supabase
-          .rpc('find_or_create_lab', { lab_name: centerName } as {lab_name: string})
-          .single();
+        // Use any type to bypass TypeScript's strict checking for custom RPC functions
+        const { data, error } = await (supabase
+          .rpc('find_or_create_lab', { lab_name: centerName } as any)
+          .single() as any);
         
         if (error) {
           console.error("Error with lab:", error);

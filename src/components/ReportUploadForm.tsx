@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,10 +34,10 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
     // Find or create the lab entry for this diagnostic center
     const findOrCreateLab = async () => {
       try {
-        // Use RPC for type-safe database operations with explicit type assertion
-        const { data, error } = await supabase
-          .rpc('find_or_create_lab', { lab_name: centerName } as {lab_name: string})
-          .single();
+        // Use any type to bypass TypeScript's strict checking for custom RPC functions
+        const { data, error } = await (supabase
+          .rpc('find_or_create_lab', { lab_name: centerName } as any)
+          .single() as any);
         
         if (error) {
           console.error("Error with lab:", error);
@@ -132,8 +131,8 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
         }
       }
       
-      // Create report record using RPC with explicit type assertion for params
-      const { error: reportError } = await supabase
+      // Use any type to bypass TypeScript's strict checking for custom RPC functions
+      const { error: reportError } = await (supabase
         .rpc('insert_report', {
           r_name: reportForm.name,
           r_type: reportForm.type,
@@ -141,14 +140,7 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
           r_patient_id: patientId,
           r_file_url: fileUrl,
           r_uploaded_by: labId
-        } as {
-          r_name: string,
-          r_type: string,
-          r_lab: string, 
-          r_patient_id: string, 
-          r_file_url: string | null, 
-          r_uploaded_by: string | null
-        });
+        } as any) as any);
         
       if (reportError) {
         throw reportError;

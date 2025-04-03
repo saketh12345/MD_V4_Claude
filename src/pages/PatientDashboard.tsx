@@ -56,9 +56,10 @@ const PatientDashboard = () => {
       
       // Try to find the patient record via a custom RPC
       try {
-        const { data: patientData, error: patientError } = await supabase
-          .rpc('get_patient_by_phone', { phone: currentUser.phone } as {phone: string})
-          .maybeSingle();
+        // Use any type to bypass TypeScript's strict checking for custom RPC functions
+        const { data: patientData, error: patientError } = await (supabase
+          .rpc('get_patient_by_phone', { phone: currentUser.phone } as any)
+          .maybeSingle() as any);
           
         if (patientError) {
           console.error("Error finding patient record:", patientError);
