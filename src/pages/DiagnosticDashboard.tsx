@@ -23,6 +23,7 @@ const DiagnosticDashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [centerId, setCenterId] = useState<string | null>(null);
   const [centerName, setCenterName] = useState<string>("");
+  const [phoneVerificationStatus, setPhoneVerificationStatus] = useState<string | null>(null);
   
   // Form state
   const [reportForm, setReportForm] = useState({
@@ -113,6 +114,12 @@ const DiagnosticDashboard = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    
+    if (name === 'patient_phone') {
+      // Reset verification status when phone changes
+      setPhoneVerificationStatus(null);
+    }
+    
     setReportForm({ ...reportForm, [name]: value });
   };
 
@@ -126,10 +133,46 @@ const DiagnosticDashboard = () => {
     setReportForm({ ...reportForm, type: value });
   };
 
+  const verifyPatientPhone = async () => {
+    if (!reportForm.patient_phone) {
+      setPhoneVerificationStatus("empty");
+      return false;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, user_type')
+        .eq('phone', reportForm.patient_phone)
+        .eq('user_type', 'patient')
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Phone verification error:", error);
+        setPhoneVerificationStatus("error");
+        return false;
+      }
+      
+      if (!data) {
+        console.log("No patient found with phone:", reportForm.patient_phone);
+        setPhoneVerificationStatus("not_found");
+        return false;
+      }
+      
+      console.log("Patient found:", data);
+      setPhoneVerificationStatus("verified");
+      return data.id;
+    } catch (error) {
+      console.error("Patient verification error:", error);
+      setPhoneVerificationStatus("error");
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!reportForm.patient_phone || !reportForm.name || !reportForm.type) {
+    if (!reportForm.name || !reportForm.type) {
       toast({
         title: "Missing Fields",
         description: "Please fill out all required fields",
@@ -141,18 +184,15 @@ const DiagnosticDashboard = () => {
     setUploading(true);
     
     try {
-      // 1. Get patient ID from phone number
-      const { data: patients, error: patientError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('phone', reportForm.patient_phone)
-        .eq('user_type', 'patient')
-        .single();
-        
-      if (patientError || !patients) {
+      // 1. Verify patient phone and get patient ID
+      const patientId = await verifyPatientPhone();
+      
+      if (!patientId) {
         toast({
-          title: "Error",
-          description: "Patient not found with the given phone number",
+          title: "Invalid Patient",
+          description: phoneVerificationStatus === "not_found" 
+            ? "No patient found with this phone number" 
+            : "Failed to verify patient. Please check the phone number",
           variant: "destructive"
         });
         setUploading(false);
@@ -186,7 +226,7 @@ const DiagnosticDashboard = () => {
           name: reportForm.name,
           type: reportForm.type,
           lab: centerName,
-          patient_id: patients.id,
+          patient_id: patientId as string,
           file_url: fileUrl
         });
         
@@ -202,6 +242,8 @@ const DiagnosticDashboard = () => {
         file: null
       });
       
+      setPhoneVerificationStatus(null);
+      
       toast({
         title: "Success",
         description: "Report uploaded successfully"
@@ -216,6 +258,21 @@ const DiagnosticDashboard = () => {
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const getPhoneVerificationMessage = () => {
+    switch (phoneVerificationStatus) {
+      case "verified":
+        return <p className="text-green-600 text-xs mt-1">✓ Patient verified</p>;
+      case "not_found":
+        return <p className="text-red-600 text-xs mt-1">No patient found with this phone number</p>;
+      case "error":
+        return <p className="text-red-600 text-xs mt-1">Error verifying patient</p>;
+      case "empty":
+        return <p className="text-red-600 text-xs mt-1">Phone number is required</p>;
+      default:
+        return null;
     }
   };
 
@@ -236,14 +293,30 @@ const DiagnosticDashboard = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="patient_phone">Patient Phone Number</Label>
-                <Input 
-                  id="patient_phone" 
-                  name="patient_phone"
-                  placeholder="Enter patient's phone number" 
-                  value={reportForm.patient_phone}
-                  onChange={handleChange}
-                  required
-                />
+                <div className="flex gap-2">
+                  <Input 
+                    id="patient_phone" 
+                    name="patient_phone"
+                    placeholder="Enter patient's phone number" 
+                    value={reportForm.patient_phone}
+                    onChange={handleChange}
+                    required
+                    className={`flex-1 ${phoneVerificationStatus === "not_found" || phoneVerificationStatus === "error" || phoneVerificationStatus === "empty" 
+                      ? "border-red-500" 
+                      : phoneVerificationStatus === "verified" 
+                        ? "border-green-500" 
+                        : ""}`}
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={verifyPatientPhone}
+                    disabled={!reportForm.patient_phone}
+                  >
+                    Verify
+                  </Button>
+                </div>
+                {getPhoneVerificationMessage()}
               </div>
               
               <div>
@@ -293,7 +366,7 @@ const DiagnosticDashboard = () => {
               <Button 
                 type="submit" 
                 className="w-full"
-                disabled={uploading}
+                disabled={uploading || phoneVerificationStatus !== "verified"}
               >
                 {uploading ? "Uploading..." : "Upload Report"}
               </Button>
@@ -325,7 +398,7 @@ const DiagnosticDashboard = () => {
                     <div className="flex-1">
                       <p className="font-medium">{report.name}</p>
                       <p className="text-sm text-gray-500">
-                        {new Date(report.date).toLocaleDateString()} • {report.type}
+                        {new Date(report.created_at).toLocaleDateString()} • {report.type}
                       </p>
                     </div>
                     {report.file_url && (

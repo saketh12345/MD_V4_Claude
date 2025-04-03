@@ -85,7 +85,7 @@ const PatientDashboard = () => {
         .from('reports')
         .select('*')
         .eq('patient_id', userId)
-        .order('date', { ascending: false });
+        .order('created_at', { ascending: false });
         
       if (error) {
         throw error;
@@ -95,7 +95,7 @@ const PatientDashboard = () => {
         const formattedReports = data.map((report: ReportRow) => ({
           id: report.id,
           name: report.name,
-          date: new Date(report.date).toLocaleDateString(),
+          date: new Date(report.created_at).toLocaleDateString(),
           lab: report.lab,
           type: report.type,
           file_url: report.file_url || '#'
