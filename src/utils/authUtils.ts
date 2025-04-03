@@ -22,13 +22,17 @@ export const registerUser = async (
   licenseNumber?: string
 ): Promise<{ success: boolean; message: string }> => {
   try {
+    console.log("Registering new user with phone:", phone);
+    // Normalize phone number before storing
+    const normalizedPhone = phone.trim();
+    
     // Register the user with Supabase
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      phone,
+      phone: normalizedPhone,
       password,
       options: {
         data: {
-          phone,
+          phone: normalizedPhone,
           user_type: userType,
           full_name: fullName,
           center_name: centerName,
@@ -49,11 +53,13 @@ export const registerUser = async (
     if (authData.user) {
       const profileData: ProfileInsert = {
         id: authData.user.id,
-        phone,
+        phone: normalizedPhone,
         user_type: userType,
         full_name: fullName,
         center_name: centerName
       };
+      
+      console.log("Creating profile with data:", profileData);
       
       const { error: profileError } = await supabase
         .from('profiles')
@@ -87,9 +93,13 @@ export const loginUser = async (
   password: string
 ): Promise<{ success: boolean; message: string; userType?: 'patient' | 'center' }> => {
   try {
+    console.log("Attempting login with phone:", phone);
+    // Normalize phone number before comparing
+    const normalizedPhone = phone.trim();
+    
     // Sign in with Supabase using phone
     const { data, error } = await supabase.auth.signInWithPassword({
-      phone,
+      phone: normalizedPhone,
       password
     });
     
@@ -130,11 +140,13 @@ export const loginUser = async (
       
       const newProfile: ProfileInsert = {
         id: data.user.id,
-        phone: userMeta.phone || phone,
+        phone: normalizedPhone || userMeta.phone,
         user_type: userMeta.user_type as 'patient' | 'center',
         full_name: userMeta.full_name,
         center_name: userMeta.center_name
       };
+      
+      console.log("Creating profile during login:", newProfile);
       
       const { error: insertError } = await supabase
         .from('profiles')
@@ -210,13 +222,16 @@ export const updateUserData = async (updatedUser: AuthUser): Promise<boolean> =>
   try {
     console.log("Updating user profile:", updatedUser);
     
+    // Normalize phone number before updating
+    const normalizedPhone = updatedUser.phone.trim();
+    
     // Update profile in Supabase
     const { error } = await supabase
       .from('profiles')
       .update({
         full_name: updatedUser.fullName,
         center_name: updatedUser.centerName,
-        phone: updatedUser.phone,
+        phone: normalizedPhone,
       })
       .eq('id', updatedUser.id);
     
@@ -230,7 +245,7 @@ export const updateUserData = async (updatedUser: AuthUser): Promise<boolean> =>
     // Also update auth metadata to keep everything in sync
     const { error: authError } = await supabase.auth.updateUser({
       data: {
-        phone: updatedUser.phone,
+        phone: normalizedPhone,
         full_name: updatedUser.fullName,
         center_name: updatedUser.centerName
       }

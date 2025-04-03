@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -86,11 +87,22 @@ const DiagnosticSettings = () => {
     
     console.log("Updating center profile with:", centerInfo);
 
+    // Validate phone number before updating
+    if (!centerInfo.phoneNumber.trim()) {
+      toast({
+        title: "Error",
+        description: "Phone number cannot be empty",
+        variant: "destructive"
+      });
+      setIsLoading(false);
+      return;
+    }
+
     // Update user in Supabase
     const updated = await updateUserData({
       id: centerInfo.id,
       centerName: centerInfo.centerName,
-      phone: centerInfo.phoneNumber,
+      phone: centerInfo.phoneNumber.trim(),
       userType: 'center'
     });
     
