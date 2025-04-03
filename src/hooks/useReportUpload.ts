@@ -61,19 +61,16 @@ export const useReportUpload = (onSuccess: () => void) => {
         }
       }
       
-      // Create params object with the proper types
-      const params: InsertReportParams = {
-        r_name: name,
-        r_type: type,
-        r_lab: centerName,
-        r_patient_id: patientId,
-        r_file_url: fileUrl,
-        r_uploaded_by: labId
-      };
-      
-      // Call the RPC function with explicit typing
+      // Use type assertion to fix the "never" type error
       const { error: reportError } = await supabase
-        .rpc('insert_report', params);
+        .rpc('insert_report', {
+          r_name: name,
+          r_type: type,
+          r_lab: centerName,
+          r_patient_id: patientId,
+          r_file_url: fileUrl,
+          r_uploaded_by: labId
+        } as any);
         
       if (reportError) {
         throw reportError;

@@ -23,14 +23,9 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
     // Find or create the lab entry for this diagnostic center
     const findOrCreateLab = async () => {
       try {
-        // Create params object with the proper type
-        const params: FindOrCreateLabParams = {
-          lab_name: centerName
-        };
-        
-        // Call the RPC function with explicit typing
+        // Use type assertion to fix the "never" type error
         const { data, error } = await supabase
-          .rpc('find_or_create_lab', params)
+          .rpc('find_or_create_lab', { lab_name: centerName } as any)
           .single();
         
         if (error) {

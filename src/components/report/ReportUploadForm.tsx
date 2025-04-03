@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useReportForm } from "@/contexts/ReportFormContext";
 import { ReportFormProvider } from "@/contexts/ReportFormContext";
 import { useReportUpload } from "@/hooks/useReportUpload";
-import PatientLookup from "../PatientLookup";
+import PatientLookup from "../../components/PatientLookup";
 import PatientInfo from "./PatientInfo";
 import ReportFormFields from "./ReportFormFields";
 import LabInitializer from "./LabInitializer";

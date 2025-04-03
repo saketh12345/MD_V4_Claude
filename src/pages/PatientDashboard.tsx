@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, Download, Share2, FileText } from "lucide-react";
@@ -61,14 +60,9 @@ const PatientDashboard = () => {
       
       // Try to find the patient record via a custom RPC
       try {
-        // Create params object with the proper type
-        const params: GetPatientByPhoneParams = {
-          phone: currentUser.phone
-        };
-        
-        // Call the RPC function with explicit typing
+        // Use type assertion to fix the "never" type error
         const { data: patientData, error: patientError } = await supabase
-          .rpc('get_patient_by_phone', params)
+          .rpc('get_patient_by_phone', { phone: currentUser.phone } as any)
           .maybeSingle();
           
         if (patientError) {

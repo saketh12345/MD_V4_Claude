@@ -33,14 +33,9 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
     setShowRegistration(false);
     
     try {
-      // Create params object with the proper type
-      const params: GetPatientByPhoneParams = {
-        phone: phoneNumber
-      };
-      
-      // Call the RPC function with explicit typing
+      // Use type assertion for parameters to fix the "never" type error
       const { data, error } = await supabase
-        .rpc('get_patient_by_phone', params)
+        .rpc('get_patient_by_phone', { phone: phoneNumber } as any)
         .maybeSingle();
         
       if (error) {
