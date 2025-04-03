@@ -109,18 +109,50 @@ export const loginUser = async (
       };
     }
     
-    // Get user profile from profiles table
+    // Check if profile exists
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('user_type')
+      .select('*')
       .eq('id', data.user.id)
-      .single();
+      .maybeSingle();
     
-    if (profileError || !profile) {
+    if (profileError) {
       console.error("Profile fetch error:", profileError);
       return { 
         success: false, 
         message: 'Error retrieving user profile' 
+      };
+    }
+    
+    // If profile doesn't exist, create one based on auth metadata
+    if (!profile) {
+      console.log("Profile not found, creating from user metadata");
+      const userMeta = data.user.user_metadata;
+      
+      const newProfile: ProfileInsert = {
+        id: data.user.id,
+        phone: userMeta.phone || phone,
+        user_type: userMeta.user_type as 'patient' | 'center',
+        full_name: userMeta.full_name,
+        center_name: userMeta.center_name
+      };
+      
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert(newProfile);
+      
+      if (insertError) {
+        console.error("Profile creation error during login:", insertError);
+        return { 
+          success: false, 
+          message: 'Failed to create user profile' 
+        };
+      }
+      
+      return { 
+        success: true, 
+        message: 'Login successful',
+        userType: userMeta.user_type as 'patient' | 'center'
       };
     }
     
