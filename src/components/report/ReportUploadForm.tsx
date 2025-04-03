@@ -5,9 +5,9 @@ import { useReportForm } from "@/contexts/ReportFormContext";
 import { ReportFormProvider } from "@/contexts/ReportFormContext";
 import { useReportUpload } from "@/hooks/useReportUpload";
 import PatientLookup from "@/components/PatientLookup";
-import PatientInfo from "./PatientInfo";
-import ReportFormFields from "./ReportFormFields";
-import LabInitializer from "./LabInitializer";
+import PatientInfo from "@/components/report/PatientInfo";
+import ReportFormFields from "@/components/report/ReportFormFields";
+import LabInitializer from "@/components/report/LabInitializer";
 
 interface ReportUploadFormProps {
   centerName: string;
