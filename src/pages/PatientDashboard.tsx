@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { format } from "date-fns";
 import ReportUpload from "@/components/ReportUpload";
+import { Button } from "@/components/ui/button";
+import { FileIcon, RefreshCw } from "lucide-react";
 
 interface Report {
   id: string;
@@ -28,6 +30,7 @@ const PatientDashboard = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [userType, setUserType] = useState<string>("");
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   
   const getReports = async (patientId: string) => {
     const { data: reports, error } = await supabase
@@ -45,8 +48,15 @@ const PatientDashboard = () => {
 
   const refreshReports = async () => {
     if (patientId) {
+      setIsRefreshing(true);
       const patientReports = await getReports(patientId);
       setReports(patientReports);
+      setIsRefreshing(false);
+      
+      toast({
+        title: "Reports refreshed",
+        description: `${patientReports.length} reports loaded`,
+      });
     }
   };
   
@@ -123,16 +133,28 @@ const PatientDashboard = () => {
       <div className="grid gap-6">
         <Card className="bg-white shadow-sm">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Welcome to MediVault</h2>
-            <p className="text-gray-600 mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Your Medical Reports</h2>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={refreshReports} 
+                disabled={isRefreshing}
+                className="flex items-center gap-1"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            </div>
+            
+            <p className="text-gray-600 mb-6">
               Securely access and manage your medical reports. All your health information in one place.
             </p>
             
             {isLoading ? (
               <p className="text-sm text-gray-500">Loading reports...</p>
             ) : reports.length > 0 ? (
-              <div className="mt-4">
-                <h3 className="text-lg font-medium mb-2">Your Medical Reports</h3>
+              <div className="mt-4 overflow-hidden border rounded-lg">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -151,12 +173,15 @@ const PatientDashboard = () => {
                         <TableCell>{report.lab}</TableCell>
                         <TableCell>{format(new Date(report.date), 'MMM d, yyyy')}</TableCell>
                         <TableCell>
-                          <button 
+                          <Button 
                             onClick={() => viewReport(report.file_url)}
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            variant="ghost" 
+                            size="sm"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                           >
+                            <FileIcon className="h-4 w-4" />
                             View Report
-                          </button>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -164,7 +189,14 @@ const PatientDashboard = () => {
                 </Table>
               </div>
             ) : (
-              <p className="text-sm text-gray-500 mt-4">No medical reports found.</p>
+              <div className="text-center p-8 border rounded-lg bg-gray-50">
+                <p className="text-gray-500 mb-2">No medical reports found.</p>
+                {userType === 'patient' && (
+                  <p className="text-sm text-gray-400">
+                    Your medical reports will appear here once added by your healthcare provider.
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
