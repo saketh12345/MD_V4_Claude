@@ -25,6 +25,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
   const [labName, setLabName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -45,6 +46,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
     setIsSearching(true);
     setPatientId(null);
     setPatientName("");
+    setErrorMessage(null);
 
     try {
       const { data, error } = await supabase
@@ -93,12 +95,30 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
 
     setIsUploading(true);
     setShowSuccess(false);
+    setErrorMessage(null);
 
     try {
+      // Verify patient exists before attempting upload
+      const { data: patientCheck, error: patientError } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("id", patientId)
+        .single();
+
+      if (patientError || !patientCheck) {
+        throw new Error("Patient not found. Please verify the patient exists.");
+      }
+
       // Create a unique filename
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `reports/${fileName}`;
+
+      // Create the reports bucket if it doesn't exist (this will be ignored if it exists)
+      await supabase.storage.createBucket('reports', {
+        public: true,
+        fileSizeLimit: 50000000 // 50MB limit
+      });
 
       // Upload file to Supabase storage
       const { error: uploadError } = await supabase.storage
@@ -143,6 +163,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       });
     } catch (error) {
       console.error("Upload error:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Unknown error occurred");
       toast({
         title: "Upload Failed",
         description: error instanceof Error ? error.message : "Unknown error occurred",
@@ -160,6 +181,15 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
           <AlertTitle className="text-green-800">Success!</AlertTitle>
           <AlertDescription className="text-green-700">
             Report uploaded successfully.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {errorMessage && (
+        <Alert className="bg-red-50 border-red-200 mb-4" variant="destructive">
+          <AlertTitle>Upload Failed</AlertTitle>
+          <AlertDescription>
+            {errorMessage}
           </AlertDescription>
         </Alert>
       )}
