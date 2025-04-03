@@ -9,6 +9,108 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      lab_profiles: {
+        Row: {
+          lab_id: string
+          profile_id: string
+        }
+        Insert: {
+          lab_id: string
+          profile_id: string
+        }
+        Update: {
+          lab_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_profiles_lab_id_fkey"
+            columns: ["lab_id"]
+            isOneToOne: false
+            referencedRelation: "labs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      labs: {
+        Row: {
+          email: string | null
+          id: string
+          name: string | null
+          phone_number: string | null
+        }
+        Insert: {
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone_number?: string | null
+        }
+        Update: {
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone_number?: string | null
+        }
+        Relationships: []
+      }
+      patient_profiles: {
+        Row: {
+          patient_id: string
+          profile_id: string
+        }
+        Insert: {
+          patient_id: string
+          profile_id: string
+        }
+        Update: {
+          patient_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_profiles_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          email: string | null
+          id: string
+          name: string | null
+          phone_number: string
+        }
+        Insert: {
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone_number: string
+        }
+        Update: {
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone_number?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           center_name: string | null

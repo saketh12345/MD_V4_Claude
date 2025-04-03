@@ -5,11 +5,40 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/utils/authUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { format } from "date-fns";
+
+interface Report {
+  id: string;
+  name: string;
+  type: string;
+  lab: string;
+  date: string;
+  created_at: string;
+}
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [patientName, setPatientName] = useState<string>("");
+  const [patientId, setPatientId] = useState<string>("");
+  const [reports, setReports] = useState<Report[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  
+  const getReports = async (patientId: string) => {
+    const { data: reports, error } = await supabase
+      .from('reports')
+      .select('*')
+      .eq('patient_id', patientId);
+
+    if (error) {
+      console.error('Error fetching reports:', error);
+      return [];
+    }
+    
+    return reports as Report[];
+  };
   
   useEffect(() => {
     const checkAuth = async () => {
@@ -33,6 +62,15 @@ const PatientDashboard = () => {
       }
       
       setPatientName(currentUser.fullName || "Patient");
+      setPatientId(currentUser.id);
+      
+      // Fetch patient reports
+      if (currentUser.id) {
+        const patientReports = await getReports(currentUser.id);
+        setReports(patientReports);
+      }
+      
+      setIsLoading(false);
     };
     
     checkAuth();
@@ -47,10 +85,40 @@ const PatientDashboard = () => {
         <Card className="bg-white shadow-sm">
           <CardContent className="p-6">
             <h2 className="text-xl font-semibold mb-4">Welcome to MediVault</h2>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-4">
               This simplified application provides basic user authentication and profile management.
-              All file upload and retrieval features have been removed.
+              Your medical reports are listed below if available.
             </p>
+            
+            {isLoading ? (
+              <p className="text-sm text-gray-500">Loading reports...</p>
+            ) : reports.length > 0 ? (
+              <div className="mt-4">
+                <h3 className="text-lg font-medium mb-2">Your Medical Reports</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Report Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Lab</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reports.map((report) => (
+                      <TableRow key={report.id}>
+                        <TableCell className="font-medium">{report.name}</TableCell>
+                        <TableCell>{report.type}</TableCell>
+                        <TableCell>{report.lab}</TableCell>
+                        <TableCell>{format(new Date(report.date), 'MMM d, yyyy')}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mt-4">No medical reports found.</p>
+            )}
           </CardContent>
         </Card>
       </div>
