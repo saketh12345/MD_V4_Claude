@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, FileText, File, ArrowRight } from "lucide-react";
@@ -133,35 +132,68 @@ const DiagnosticDashboard = () => {
     setReportForm({ ...reportForm, type: value });
   };
 
+  // Updated patient verification function
   const verifyPatientPhone = async () => {
     if (!reportForm.patient_phone) {
+      console.log("Phone number is empty");
       setPhoneVerificationStatus("empty");
       return false;
     }
     
     try {
-      const { data, error } = await supabase
+      console.log("Verifying patient phone:", reportForm.patient_phone);
+      
+      // First, attempt to get the exact profile with this phone number
+      const { data: exactMatch, error: exactMatchError } = await supabase
         .from('profiles')
-        .select('id, user_type')
+        .select('*')
         .eq('phone', reportForm.patient_phone)
         .eq('user_type', 'patient')
         .maybeSingle();
       
-      if (error) {
-        console.error("Phone verification error:", error);
+      if (exactMatchError) {
+        console.error("Exact match query error:", exactMatchError);
         setPhoneVerificationStatus("error");
         return false;
       }
       
-      if (!data) {
-        console.log("No patient found with phone:", reportForm.patient_phone);
-        setPhoneVerificationStatus("not_found");
+      if (exactMatch) {
+        console.log("Found exact patient match:", exactMatch);
+        setPhoneVerificationStatus("verified");
+        return exactMatch.id;
+      }
+      
+      // If no exact match, try to find partial matches (e.g., with different formatting)
+      const { data: allProfiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_type', 'patient');
+      
+      if (profilesError) {
+        console.error("Retrieving all patient profiles error:", profilesError);
+        setPhoneVerificationStatus("error");
         return false;
       }
       
-      console.log("Patient found:", data);
-      setPhoneVerificationStatus("verified");
-      return data.id;
+      console.log("Retrieved patient profiles:", allProfiles?.length || 0);
+      
+      // Normalize phone numbers for comparison (remove spaces, dashes, etc.)
+      const normalizedSearchPhone = reportForm.patient_phone.replace(/\D/g, '');
+      
+      const matchingProfile = allProfiles?.find(profile => {
+        const normalizedProfilePhone = profile.phone.replace(/\D/g, '');
+        return normalizedProfilePhone === normalizedSearchPhone;
+      });
+      
+      if (matchingProfile) {
+        console.log("Found patient with normalized phone match:", matchingProfile);
+        setPhoneVerificationStatus("verified");
+        return matchingProfile.id;
+      }
+      
+      console.log("No patient found with phone:", reportForm.patient_phone);
+      setPhoneVerificationStatus("not_found");
+      return false;
     } catch (error) {
       console.error("Patient verification error:", error);
       setPhoneVerificationStatus("error");
@@ -191,8 +223,8 @@ const DiagnosticDashboard = () => {
         toast({
           title: "Invalid Patient",
           description: phoneVerificationStatus === "not_found" 
-            ? "No patient found with this phone number" 
-            : "Failed to verify patient. Please check the phone number",
+            ? "No patient found with this phone number. Please check the phone number or ask the patient to register." 
+            : "Failed to verify patient. Please check the phone number and try again.",
           variant: "destructive"
         });
         setUploading(false);
