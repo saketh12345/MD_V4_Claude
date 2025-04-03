@@ -41,7 +41,7 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
       };
       
       const { data, error } = await supabase
-        .rpc<PatientResponse, InsertPatientParams>('insert_patient', params)
+        .rpc('insert_patient', params)
         .single();
         
       if (error) {
@@ -54,7 +54,8 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
       });
       
       if (data) {
-        onSuccess(data.id, data.name);
+        const patientData = data as PatientResponse;
+        onSuccess(patientData.id, patientData.name);
       }
     } catch (error) {
       console.error("Patient registration error:", error);

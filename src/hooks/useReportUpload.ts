@@ -63,7 +63,7 @@ export const useReportUpload = (onSuccess: () => void) => {
       };
       
       const { error: reportError } = await supabase
-        .rpc<{}, InsertReportParams>('insert_report', params);
+        .rpc('insert_report', params);
         
       if (reportError) {
         throw reportError;

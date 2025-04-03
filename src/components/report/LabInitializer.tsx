@@ -19,7 +19,7 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
         const params: FindOrCreateLabParams = { lab_name: centerName };
         
         const { data, error } = await supabase
-          .rpc<LabResponse, FindOrCreateLabParams>('find_or_create_lab', params)
+          .rpc('find_or_create_lab', params)
           .single();
         
         if (error) {
@@ -28,7 +28,8 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
         }
         
         if (data) {
-          setLabId(data.id);
+          const labData = data as LabResponse;
+          setLabId(labData.id);
         }
       } catch (err) {
         console.error("Lab creation error:", err);

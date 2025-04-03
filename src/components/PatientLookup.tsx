@@ -29,7 +29,7 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
       const params: GetPatientByPhoneParams = { phone: phoneNumber };
       
       const { data, error } = await supabase
-        .rpc<PatientResponse, GetPatientByPhoneParams>('get_patient_by_phone', params)
+        .rpc('get_patient_by_phone', params)
         .maybeSingle();
         
       if (error) {
@@ -37,8 +37,9 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
       }
       
       if (data) {
-        setPatient({ id: data.id, name: data.name });
-        onPatientFound(data.id, data.name);
+        const patientData = data as PatientResponse;
+        setPatient({ id: patientData.id, name: patientData.name });
+        onPatientFound(patientData.id, patientData.name);
       } else {
         // No patient found, show registration form
         setShowRegistration(true);

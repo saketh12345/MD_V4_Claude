@@ -62,7 +62,7 @@ const PatientDashboard = () => {
         const params: GetPatientByPhoneParams = { phone: currentUser.phone };
         
         const { data: patientData, error: patientError } = await supabase
-          .rpc<PatientResponse, GetPatientByPhoneParams>('get_patient_by_phone', params)
+          .rpc('get_patient_by_phone', params)
           .maybeSingle();
           
         if (patientError) {
@@ -76,8 +76,9 @@ const PatientDashboard = () => {
         }
         
         if (patientData) {
-          setPatientId(patientData.id);
-          fetchReports(patientData.id);
+          const patient = patientData as PatientResponse;
+          setPatientId(patient.id);
+          fetchReports(patient.id);
         } else {
           // No patient record found for this user
           toast({
