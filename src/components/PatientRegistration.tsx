@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +13,13 @@ interface PatientRegistrationProps {
 interface PatientResponse {
   id: string;
   name: string;
+}
+
+// Define parameter type for insert_patient RPC function
+interface InsertPatientParams {
+  p_name: string;
+  p_phone: string;
+  p_email: string | null;
 }
 
 const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProps) => {
@@ -37,13 +43,16 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
     setIsSubmitting(true);
     
     try {
-      // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
+      // Create params object with the proper type
+      const params: InsertPatientParams = {
+        p_name: name,
+        p_phone: phoneNumber,
+        p_email: email || null
+      };
+      
+      // Call the RPC function with explicit typing
       const { data, error } = await supabase
-        .rpc('insert_patient', {
-          p_name: name,
-          p_phone: phoneNumber,
-          p_email: email || null
-        } as any)
+        .rpc('insert_patient', params)
         .single();
         
       if (error) {

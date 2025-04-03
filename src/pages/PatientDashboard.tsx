@@ -23,6 +23,11 @@ interface Report {
   file_url: string | null;
 }
 
+// Define parameter type for get_patient_by_phone RPC function
+interface GetPatientByPhoneParams {
+  phone: string;
+}
+
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -56,9 +61,14 @@ const PatientDashboard = () => {
       
       // Try to find the patient record via a custom RPC
       try {
-        // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
+        // Create params object with the proper type
+        const params: GetPatientByPhoneParams = {
+          phone: currentUser.phone
+        };
+        
+        // Call the RPC function with explicit typing
         const { data: patientData, error: patientError } = await supabase
-          .rpc('get_patient_by_phone', { phone: currentUser.phone } as any)
+          .rpc('get_patient_by_phone', params)
           .maybeSingle();
           
         if (patientError) {

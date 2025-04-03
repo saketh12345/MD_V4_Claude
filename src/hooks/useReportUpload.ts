@@ -12,6 +12,16 @@ interface ReportData {
   file: File | null;
 }
 
+// Define parameter type for the insert_report RPC function
+interface InsertReportParams {
+  r_name: string;
+  r_type: string;
+  r_lab: string;
+  r_patient_id: string;
+  r_file_url: string | null;
+  r_uploaded_by: string;
+}
+
 export const useReportUpload = (onSuccess: () => void) => {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
@@ -51,16 +61,19 @@ export const useReportUpload = (onSuccess: () => void) => {
         }
       }
       
-      // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
+      // Create params object with the proper types
+      const params: InsertReportParams = {
+        r_name: name,
+        r_type: type,
+        r_lab: centerName,
+        r_patient_id: patientId,
+        r_file_url: fileUrl,
+        r_uploaded_by: labId
+      };
+      
+      // Call the RPC function with explicit typing
       const { error: reportError } = await supabase
-        .rpc('insert_report', {
-          r_name: name,
-          r_type: type,
-          r_lab: centerName,
-          r_patient_id: patientId,
-          r_file_url: fileUrl,
-          r_uploaded_by: labId
-        } as any);
+        .rpc('insert_report', params);
         
       if (reportError) {
         throw reportError;

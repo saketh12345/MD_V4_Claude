@@ -1,7 +1,6 @@
-
 import React, { useState } from "react";
-import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,108 +12,110 @@ interface PatientLookupProps {
 
 interface PatientData {
   id: string;
-  name: string | null;
+  name: string;
 }
 
-const PatientLookup = ({ onPatientFound }: PatientLookupProps) => {
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [showRegistration, setShowRegistration] = useState(false);
-  const { toast } = useToast();
+// Define interface for get_patient_by_phone RPC function params
+interface GetPatientByPhoneParams {
+  phone: string;
+}
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!phoneNumber.trim()) {
-      toast({
-        title: "Phone number required",
-        description: "Please enter a patient's phone number",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setSearching(true);
+const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
+  const { toast } = useToast();
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [patient, setPatient] = useState<PatientData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
+
+  const lookupPatient = async (phoneNumber: string) => {
+    setIsLoading(true);
+    setPatient(null);
     setShowRegistration(false);
     
     try {
-      // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
-      const { data, error } = await supabase
-        .rpc('get_patient_by_phone', { phone: phoneNumber.trim() } as any)
-        .maybeSingle();
+      // Create params object with the proper type
+      const params: GetPatientByPhoneParams = {
+        phone: phoneNumber
+      };
       
+      // Call the RPC function with explicit typing
+      const { data, error } = await supabase
+        .rpc('get_patient_by_phone', params)
+        .maybeSingle();
+        
       if (error) {
-        console.error("Patient search error:", error);
         throw error;
       }
       
       if (data) {
-        // Patient found
+        // Type assertion for the response data
         const patientData = data as unknown as PatientData;
+        setPatient({ id: patientData.id, name: patientData.name });
         onPatientFound(patientData.id, patientData.name);
-        toast({
-          title: "Patient found",
-          description: `Found patient: ${patientData.name || "Unknown"}`,
-        });
       } else {
         // No patient found, show registration form
         setShowRegistration(true);
         toast({
-          title: "Patient not found",
-          description: "No patient found with this phone number. You can register them below.",
-          variant: "destructive"
+          title: "Patient Not Found",
+          description: "No patient found with this phone number. Please register the patient.",
         });
+        onPatientFound("", null); // Clear any previously found patient
       }
     } catch (error) {
-      console.error("Error searching for patient:", error);
+      console.error("Patient lookup error:", error);
       toast({
         title: "Error",
-        description: "Failed to search for patient. Please try again.",
+        description: "Failed to lookup patient. Please try again.",
         variant: "destructive"
       });
     } finally {
-      setSearching(false);
+      setIsLoading(false);
     }
   };
 
   const handlePatientRegistered = (id: string, name: string) => {
-    setShowRegistration(false);
+    setPatient({ id, name });
     onPatientFound(id, name);
+    setShowRegistration(false);
   };
 
   return (
-    <div>
-      <form onSubmit={handleSearch} className="mb-4">
-        <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
-          <div className="flex-1">
-            <Input
-              type="tel"
-              placeholder="Enter patient phone number"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="w-full"
-              required
-            />
-          </div>
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="phone">Patient Phone Number</Label>
+        <div className="flex rounded-md shadow-sm">
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="Enter patient's phone number"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+          />
           <Button 
-            type="submit" 
-            disabled={searching || !phoneNumber.trim()}
-            className="bg-blue-500 hover:bg-blue-600"
+            type="button"
+            onClick={() => lookupPatient(phoneNumber)}
+            disabled={isLoading || !phoneNumber}
           >
-            {searching ? "Searching..." : (
-              <>
-                <Search className="h-4 w-4 mr-2" />
-                Find Patient
-              </>
-            )}
+            {isLoading ? "Looking Up..." : "Lookup Patient"}
           </Button>
         </div>
-      </form>
-
+      </div>
+      
+      {patient && (
+        <div className="border border-green-100 bg-green-50 p-4 rounded-md">
+          <h3 className="text-lg font-semibold mb-2">Patient Found</h3>
+          <p className="text-gray-600">
+            Name: {patient.name}
+            <br />
+            ID: {patient.id}
+          </p>
+        </div>
+      )}
+      
       {showRegistration && (
         <PatientRegistration 
-          phoneNumber={phoneNumber} 
-          onSuccess={handlePatientRegistered} 
+          onSuccess={handlePatientRegistered}
+          phoneNumber={phoneNumber}
         />
       )}
     </div>

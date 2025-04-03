@@ -11,6 +11,11 @@ interface LabResponse {
   id: string;
 }
 
+// Define parameter type for find_or_create_lab RPC function
+interface FindOrCreateLabParams {
+  lab_name: string;
+}
+
 const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
   const { setLabId } = useReportForm();
 
@@ -18,9 +23,14 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
     // Find or create the lab entry for this diagnostic center
     const findOrCreateLab = async () => {
       try {
-        // Use type assertion to bypass TypeScript's strict checking for custom RPC functions
+        // Create params object with the proper type
+        const params: FindOrCreateLabParams = {
+          lab_name: centerName
+        };
+        
+        // Call the RPC function with explicit typing
         const { data, error } = await supabase
-          .rpc('find_or_create_lab', { lab_name: centerName } as any)
+          .rpc('find_or_create_lab', params)
           .single();
         
         if (error) {
