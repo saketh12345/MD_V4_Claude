@@ -62,8 +62,9 @@ export const useReportUpload = (onSuccess: () => void) => {
         r_uploaded_by: labId
       };
       
-      const { error: reportError } = await supabase
-        .rpc('insert_report', params);
+      // Using any to bypass type checking for the RPC call
+      const { error: reportError } = await (supabase
+        .rpc('insert_report', params) as any);
         
       if (reportError) {
         throw reportError;

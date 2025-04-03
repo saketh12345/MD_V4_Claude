@@ -18,9 +18,10 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
         // Cast parameter object to the proper type
         const params: FindOrCreateLabParams = { lab_name: centerName };
         
-        const { data, error } = await supabase
+        // Using any to bypass type checking for the RPC call
+        const { data, error } = await (supabase
           .rpc('find_or_create_lab', params)
-          .single();
+          .single() as any);
         
         if (error) {
           console.error("Error with lab:", error);
