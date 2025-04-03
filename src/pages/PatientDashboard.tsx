@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/utils/authUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { format } from "date-fns";
+import ReportUpload from "@/components/ReportUpload";
 
 interface Report {
   id: string;
@@ -16,6 +17,7 @@ interface Report {
   lab: string;
   date: string;
   created_at: string;
+  file_url?: string;
 }
 
 const PatientDashboard = () => {
@@ -25,6 +27,7 @@ const PatientDashboard = () => {
   const [patientId, setPatientId] = useState<string>("");
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [userType, setUserType] = useState<string>("");
   
   const getReports = async (patientId: string) => {
     const { data: reports, error } = await supabase
@@ -38,6 +41,13 @@ const PatientDashboard = () => {
     }
     
     return reports as Report[];
+  };
+
+  const refreshReports = async () => {
+    if (patientId) {
+      const patientReports = await getReports(patientId);
+      setReports(patientReports);
+    }
   };
   
   useEffect(() => {
@@ -55,19 +65,18 @@ const PatientDashboard = () => {
         return;
       }
       
-      // If not a patient, redirect to appropriate dashboard
-      if (currentUser.userType !== 'patient') {
-        navigate("/diagnostic-dashboard");
-        return;
-      }
+      setUserType(currentUser.userType);
       
-      setPatientName(currentUser.fullName || "Patient");
-      setPatientId(currentUser.id);
-      
-      // Fetch patient reports
-      if (currentUser.id) {
-        const patientReports = await getReports(currentUser.id);
-        setReports(patientReports);
+      if (currentUser.userType === 'patient') {
+        // Set patient information
+        setPatientName(currentUser.fullName || "Patient");
+        setPatientId(currentUser.id);
+        
+        // Fetch patient reports
+        if (currentUser.id) {
+          const patientReports = await getReports(currentUser.id);
+          setReports(patientReports);
+        }
       }
       
       setIsLoading(false);
@@ -75,6 +84,36 @@ const PatientDashboard = () => {
     
     checkAuth();
   }, [navigate, toast]);
+
+  // Function to view report
+  const viewReport = async (fileUrl: string | undefined) => {
+    if (!fileUrl) {
+      toast({
+        title: "Error",
+        description: "No file available for this report",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.storage.from('reports').createSignedUrl(fileUrl, 60);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Open the signed URL in a new tab
+      window.open(data.signedUrl, '_blank');
+    } catch (error) {
+      console.error('Error getting report file:', error);
+      toast({
+        title: "Error",
+        description: "Could not retrieve the report file",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <DashboardLayout
@@ -86,8 +125,7 @@ const PatientDashboard = () => {
           <CardContent className="p-6">
             <h2 className="text-xl font-semibold mb-4">Welcome to MediVault</h2>
             <p className="text-gray-600 mb-4">
-              This simplified application provides basic user authentication and profile management.
-              Your medical reports are listed below if available.
+              Securely access and manage your medical reports. All your health information in one place.
             </p>
             
             {isLoading ? (
@@ -102,6 +140,7 @@ const PatientDashboard = () => {
                       <TableHead>Type</TableHead>
                       <TableHead>Lab</TableHead>
                       <TableHead>Date</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -111,6 +150,14 @@ const PatientDashboard = () => {
                         <TableCell>{report.type}</TableCell>
                         <TableCell>{report.lab}</TableCell>
                         <TableCell>{format(new Date(report.date), 'MMM d, yyyy')}</TableCell>
+                        <TableCell>
+                          <button 
+                            onClick={() => viewReport(report.file_url)}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            View Report
+                          </button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -121,6 +168,10 @@ const PatientDashboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {userType === 'center' && (
+          <ReportUpload onUploadSuccess={refreshReports} />
+        )}
       </div>
     </DashboardLayout>
   );
