@@ -33,14 +33,14 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
     setIsSubmitting(true);
     
     try {
-      // Cast parameter object to the proper type
-      const params: InsertPatientParams = {
+      // Create parameter object
+      const params = {
         p_name: name,
         p_phone: phoneNumber,
         p_email: email || null
       };
       
-      // Using type assertion for the RPC call
+      // Fix typing by using 'as any' for the parameters
       const { data, error } = await supabase
         .rpc('insert_patient', params as any)
         .single();
