@@ -19,28 +19,44 @@ import PatientDashboard from "./pages/PatientDashboard";
 import DiagnosticDashboard from "./pages/DiagnosticDashboard";
 import PatientSettings from "./pages/PatientSettings";
 import DiagnosticSettings from "./pages/DiagnosticSettings";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { setupStoragePolicies } from "./integrations/supabase/createStoragePolicies";
 import { toast } from "./components/ui/use-toast";
+import { supabase } from "./integrations/supabase/client";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Initialize storage policies on app load
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Check for authentication changes
   useEffect(() => {
-    setupStoragePolicies().then(result => {
-      if (result.success) {
-        console.log("Storage policies setup successfully");
-      } else {
-        console.error("Failed to setup storage policies:", result.error);
-        // Let the user know if there's an issue
-        toast({
-          title: "Storage Setup Warning",
-          description: "Some file storage features may not work properly. Please try again later.",
-          variant: "destructive",
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_IN') {
+        // Try to setup storage after user signs in
+        setupStoragePolicies().then(result => {
+          if (result.success) {
+            console.log("Storage policies setup successfully");
+          } else if (result.error) {
+            console.error("Failed to setup storage policies:", result.error);
+          }
         });
       }
+      setAuthChecked(true);
     });
+
+    // Initial check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        // Only try to setup storage if user is logged in
+        setupStoragePolicies().catch(console.error);
+      }
+      setAuthChecked(true);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (

@@ -7,6 +7,18 @@ export const setupStoragePolicies = async () => {
   try {
     console.log("Setting up storage for the reports bucket...");
     
+    // Check if user is authenticated before attempting storage operations
+    const { data: session } = await supabase.auth.getSession();
+    const isAuthenticated = !!session?.user;
+    
+    if (!isAuthenticated) {
+      console.log("User not authenticated, skipping storage setup");
+      return { 
+        success: true, 
+        message: "Storage setup deferred until user authentication" 
+      };
+    }
+    
     // First, check if the bucket exists
     const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     
@@ -20,7 +32,7 @@ export const setupStoragePolicies = async () => {
     if (!reportsBucketExists) {
       console.log("Creating reports bucket...");
       const { error: createError } = await supabase.storage.createBucket('reports', {
-        public: false, // Not public by default, access will be controlled by policies
+        public: true, // Make the bucket public
         fileSizeLimit: 50000000 // 50MB limit
       });
       
@@ -40,7 +52,6 @@ export const setupStoragePolicies = async () => {
     }
     
     // Test the storage permissions by attempting to list files
-    // This helps verify our policies are working
     console.log("Testing storage access...");
     const { error: testError } = await supabase.storage.from('reports').list();
     
