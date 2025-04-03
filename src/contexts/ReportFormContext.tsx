@@ -4,7 +4,6 @@ import React, { createContext, useState, useContext } from "react";
 interface ReportFormState {
   name: string;
   type: string;
-  file: File | null;
   patientId: string | null;
   patientName: string | null;
   labId: string | null;
@@ -15,7 +14,6 @@ interface ReportFormContextType {
   formState: ReportFormState;
   setName: (name: string) => void;
   setType: (type: string) => void;
-  setFile: (file: File | null) => void;
   setPatient: (id: string, name: string | null) => void;
   setLabId: (id: string | null) => void;
   resetForm: () => void;
@@ -24,7 +22,6 @@ interface ReportFormContextType {
 const initialState = {
   name: "",
   type: "Blood Test",
-  file: null,
   patientId: null,
   patientName: null,
   labId: null,
@@ -42,10 +39,6 @@ export const ReportFormProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const setType = (type: string) => {
     setState(prev => ({ ...prev, type }));
-  };
-
-  const setFile = (file: File | null) => {
-    setState(prev => ({ ...prev, file }));
   };
 
   const setPatient = (id: string, name: string | null) => {
@@ -72,7 +65,6 @@ export const ReportFormProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         formState, 
         setName, 
         setType, 
-        setFile, 
         setPatient, 
         setLabId, 
         resetForm 

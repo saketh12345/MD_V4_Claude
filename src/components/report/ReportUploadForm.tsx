@@ -35,8 +35,7 @@ const ReportUploadFormContent: React.FC<ReportUploadFormProps> = ({ centerName, 
       type: formState.type,
       patientId: formState.patientId,
       labId: formState.labId,
-      centerName,
-      file: formState.file
+      centerName
     });
     
     if (success) {

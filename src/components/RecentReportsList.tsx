@@ -1,6 +1,6 @@
 
 import React from "react";
-import { ArrowRight, File } from "lucide-react";
+import { File } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Database } from "@/integrations/supabase/types";
 
@@ -37,16 +37,6 @@ const RecentReportsList = ({ reports, loading }: RecentReportsListProps) => {
               {new Date(report.created_at).toLocaleDateString()} • {report.type}
             </p>
           </div>
-          {report.file_url && (
-            <a 
-              href={report.file_url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:text-blue-700"
-            >
-              <ArrowRight className="h-5 w-5" />
-            </a>
-          )}
         </div>
       ))}
       

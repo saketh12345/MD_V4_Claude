@@ -10,7 +10,6 @@ interface ReportData {
   patientId: string;
   labId: string;
   centerName: string;
-  file: File | null;
 }
 
 export const useReportUpload = (onSuccess: () => void) => {
@@ -18,7 +17,7 @@ export const useReportUpload = (onSuccess: () => void) => {
   const [uploading, setUploading] = useState(false);
 
   const uploadReport = async (reportData: ReportData) => {
-    const { name, type, patientId, labId, centerName, file } = reportData;
+    const { name, type, patientId, labId, centerName } = reportData;
     
     if (!patientId || !name || !type || !labId) {
       toast({
@@ -32,33 +31,13 @@ export const useReportUpload = (onSuccess: () => void) => {
     setUploading(true);
     
     try {
-      // Upload file if exists
-      let fileUrl = null;
-      if (file) {
-        const fileName = `${Date.now()}-${file.name}`;
-        const { data: fileData, error: fileError } = await supabase.storage
-          .from('reports')
-          .upload(fileName, file);
-          
-        if (fileError) {
-          console.error("File upload error:", fileError);
-          // Continue without file
-        } else if (fileData) {
-          const { data: urlData } = await supabase.storage
-            .from('reports')
-            .getPublicUrl(fileName);
-            
-          fileUrl = urlData.publicUrl;
-        }
-      }
-      
       // Cast parameter object to the proper type
       const params: InsertReportParams = {
         r_name: name,
         r_type: type,
         r_lab: centerName,
         r_patient_id: patientId,
-        r_file_url: fileUrl,
+        r_file_url: null,
         r_uploaded_by: labId
       };
       

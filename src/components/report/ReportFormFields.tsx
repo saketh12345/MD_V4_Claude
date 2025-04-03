@@ -6,18 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useReportForm } from "@/contexts/ReportFormContext";
 
 const ReportFormFields: React.FC = () => {
-  const { formState, setName, setType, setFile } = useReportForm();
+  const { formState, setName, setType } = useReportForm();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     if (name === "name") {
       setName(value);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
     }
   };
 
@@ -58,17 +52,6 @@ const ReportFormFields: React.FC = () => {
             <SelectItem value="Other">Other</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-      
-      <div>
-        <Label htmlFor="file">Report File (Optional)</Label>
-        <Input 
-          id="file" 
-          type="file" 
-          onChange={handleFileChange}
-          accept=".pdf,.jpg,.jpeg,.png"
-        />
-        <p className="text-xs text-gray-500 mt-1">Upload PDF or image files (max 10MB)</p>
       </div>
     </>
   );

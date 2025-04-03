@@ -21,7 +21,7 @@ export interface InsertReportParams {
   r_type: string;
   r_lab: string;
   r_patient_id: string;
-  r_file_url: string | null;
+  r_file_url: null;
   r_uploaded_by: string;
 }
 

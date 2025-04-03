@@ -17,7 +17,7 @@ const PatientDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [reports, setReports] = useState<ReportRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [patientId, setPatientId] = useState<string | null>(null);
   const [patientName, setPatientName] = useState<string>("");
   
