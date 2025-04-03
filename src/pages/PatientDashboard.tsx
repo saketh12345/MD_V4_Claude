@@ -107,13 +107,33 @@ const PatientDashboard = () => {
     }
 
     try {
-      // Create a signed URL with longer expiration (60 seconds)
+      // Ensure the reports bucket exists
+      await supabase.storage.createBucket('reports', {
+        public: true,
+        fileSizeLimit: 50000000 // 50MB limit
+      }).catch(err => {
+        // Bucket might already exist, which is fine
+        console.log("Bucket check:", err);
+      });
+
+      // First try to get a signed URL (for private files)
       const { data, error } = await supabase.storage
         .from('reports')
         .createSignedUrl(fileUrl, 60);
       
       if (error) {
         console.error("Error getting signed URL:", error);
+        
+        // Try to get public URL as a fallback
+        const { data: publicUrlData } = supabase.storage
+          .from('reports')
+          .getPublicUrl(fileUrl);
+          
+        if (publicUrlData && publicUrlData.publicUrl) {
+          window.open(publicUrlData.publicUrl, '_blank');
+          return;
+        }
+        
         throw new Error("Could not generate access link for this report");
       }
       
