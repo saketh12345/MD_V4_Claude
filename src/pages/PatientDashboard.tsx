@@ -52,31 +52,40 @@ const PatientDashboard = () => {
       
       setUserId(currentUser.id);
       
-      // Find the patient record for this user
-      const { data: patientData, error: patientError } = await supabase
-        .from('patients')
-        .select('id')
-        .eq('phone_number', currentUser.phone)
-        .maybeSingle();
+      // First, try to find the patient record via a custom RPC
+      try {
+        const { data: patientData, error: patientError } = await supabase
+          .rpc('get_patient_by_phone', { phone: currentUser.phone })
+          .maybeSingle();
+          
+        if (patientError) {
+          console.error("Error finding patient record:", patientError);
+          toast({
+            title: "Error",
+            description: "Could not find your patient record",
+            variant: "destructive"
+          });
+          return;
+        }
         
-      if (patientError) {
-        console.error("Error finding patient record:", patientError);
+        if (patientData) {
+          // TypeScript needs the explicit cast here
+          const patient = patientData as { id: string, name: string };
+          setPatientId(patient.id);
+          fetchReports(patient.id);
+        } else {
+          // No patient record found for this user
+          toast({
+            title: "No Patient Record",
+            description: "No patient record found for your account. Please contact support.",
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error("Error with patient lookup:", error);
         toast({
           title: "Error",
-          description: "Could not find your patient record",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (patientData) {
-        setPatientId(patientData.id);
-        fetchReports(patientData.id);
-      } else {
-        // No patient record found for this user
-        toast({
-          title: "No Patient Record",
-          description: "No patient record found for your account. Please contact support.",
+          description: "An error occurred finding your patient record",
           variant: "destructive"
         });
       }

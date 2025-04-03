@@ -11,6 +11,11 @@ interface PatientRegistrationProps {
   phoneNumber: string;
 }
 
+interface PatientResponse {
+  id: string;
+  name: string;
+}
+
 const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProps) => {
   const { toast } = useToast();
   const [name, setName] = useState("");
@@ -50,7 +55,10 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
         description: "Patient registered successfully"
       });
       
-      onSuccess(data.id, data.name);
+      const patientData = data as PatientResponse;
+      if (patientData && patientData.id) {
+        onSuccess(patientData.id, patientData.name);
+      }
     } catch (error) {
       console.error("Patient registration error:", error);
       toast({

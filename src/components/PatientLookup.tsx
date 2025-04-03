@@ -11,6 +11,11 @@ interface PatientLookupProps {
   onPatientFound: (id: string, name: string | null) => void;
 }
 
+interface PatientData {
+  id: string;
+  name: string | null;
+}
+
 const PatientLookup = ({ onPatientFound }: PatientLookupProps) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [searching, setSearching] = useState(false);
@@ -45,10 +50,11 @@ const PatientLookup = ({ onPatientFound }: PatientLookupProps) => {
       
       if (data) {
         // Patient found
-        onPatientFound(data.id, data.name);
+        const patientData = data as PatientData;
+        onPatientFound(patientData.id, patientData.name);
         toast({
           title: "Patient found",
-          description: `Found patient: ${data.name || "Unknown"}`,
+          description: `Found patient: ${patientData.name || "Unknown"}`,
         });
       } else {
         // No patient found, show registration form

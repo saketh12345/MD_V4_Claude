@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/utils/authUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
-import ReportUploadForm from "@/components/ReportUploadForm";
+import ReportUploadForm from "@/components/report/ReportUploadForm";
 import RecentReportsList from "@/components/RecentReportsList";
 
 type ReportRow = Database['public']['Tables']['reports']['Row'];
