@@ -41,15 +41,15 @@ const DiagnosticDashboard = () => {
   return (
     <DashboardLayout 
       title={`Welcome, ${centerName}`}
-      subtitle="Manage your diagnostic center"
+      subtitle="Diagnostic Center Dashboard"
     >
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="bg-white shadow-sm">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Welcome to your Dashboard</h2>
+            <h2 className="text-xl font-semibold mb-4">Diagnostic Center Dashboard</h2>
             <p className="text-gray-600">
-              This is your diagnostic center dashboard. The file upload and patient lookup 
-              features have been removed from this application.
+              This simplified application provides basic user authentication and profile management.
+              All file upload and patient lookup features have been removed.
             </p>
           </CardContent>
         </Card>

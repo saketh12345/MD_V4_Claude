@@ -41,15 +41,15 @@ const PatientDashboard = () => {
   return (
     <DashboardLayout
       title={`Hello, ${patientName}`}
-      subtitle="View your medical information"
+      subtitle="Welcome to your patient dashboard"
     >
       <div className="grid gap-6">
         <Card className="bg-white shadow-sm">
           <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Welcome to your Dashboard</h2>
+            <h2 className="text-xl font-semibold mb-4">Welcome to MediVault</h2>
             <p className="text-gray-600">
-              This is your patient dashboard. The medical reports and file viewing
-              features have been removed from this application.
+              This simplified application provides basic user authentication and profile management.
+              All file upload and retrieval features have been removed.
             </p>
           </CardContent>
         </Card>
