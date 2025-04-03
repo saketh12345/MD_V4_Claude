@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -175,7 +174,7 @@ const PatientDashboard = () => {
         throw new Error("Could not access the reports storage. Please try again later.");
       }
 
-      // Try to get a signed URL
+      // Try to get a signed URL - file path is already correct from the database
       const { data, error } = await supabase.storage
         .from('reports')
         .createSignedUrl(fileUrl, 60);

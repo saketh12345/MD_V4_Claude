@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -221,11 +222,11 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       // Create a unique filename to avoid conflicts
       const fileExt = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const filePath = fileName; // Use just the filename without redundant "reports/" prefix
 
       console.log(`Attempting to upload file ${fileName} to reports bucket...`);
 
-      // Upload file to Supabase storage
+      // Upload file to Supabase storage - FIX: removed redundant "reports/" path prefix
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from("reports")
         .upload(filePath, file);
