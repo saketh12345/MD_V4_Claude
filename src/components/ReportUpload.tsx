@@ -203,15 +203,21 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       console.log(`Attempting to upload file ${fileName} to reports bucket...`);
 
       // Upload file to Supabase storage
-      const { error: uploadError, data: uploadData } = await supabase.storage
-        .from("reports")
-        .upload(filePath, file);
+      let uploadResult;
+      try {
+        uploadResult = await supabase.storage
+          .from("reports")
+          .upload(filePath, file);
+          
+        if (uploadResult.error) {
+          throw uploadResult.error;
+        }
 
-      if (uploadError) {
-        throw uploadError;
+        console.log("File uploaded successfully:", uploadResult.data);
+      } catch (uploadError) {
+        console.error("Upload error details:", uploadError);
+        throw new Error(`File upload failed: ${uploadError instanceof Error ? uploadError.message : "Unknown error"}`);
       }
-
-      console.log("File uploaded successfully:", uploadData);
       
       const currentUser = await getCurrentUser();
 
@@ -219,22 +225,27 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
         throw new Error("You must be logged in to upload reports");
       }
 
-      // Create a report record
-      const { error: reportError, data: reportData } = await supabase.from("reports").insert({
-        patient_id: patientId,
-        name: reportName,
-        type: reportType,
-        lab: labName,
-        file_url: filePath,
-        uploaded_by: currentUser.id,
-        date: new Date().toISOString().split("T")[0],
-      }).select();
-
-      if (reportError) {
-        throw reportError;
+      // Create a report record - this will connect the file to the patient
+      try {
+        const { error: reportError, data: reportData } = await supabase.from("reports").insert({
+          patient_id: patientId,
+          name: reportName,
+          type: reportType,
+          lab: labName,
+          file_url: filePath,
+          uploaded_by: currentUser.id,
+          date: new Date().toISOString().split("T")[0],
+        }).select();
+  
+        if (reportError) {
+          throw reportError;
+        }
+  
+        console.log("Report record created:", reportData);
+      } catch (reportError) {
+        console.error("Database record creation error:", reportError);
+        throw new Error(`Failed to save report information: ${reportError instanceof Error ? reportError.message : "Unknown error"}`);
       }
-
-      console.log("Report record created:", reportData);
 
       // Reset form and show success
       setReportName("");
@@ -338,7 +349,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="reportName" className="text-sm font-medium">
+          <label htmlFor="reportName" className="block text-sm font-medium">
             Report Name
           </label>
           <Input
@@ -351,7 +362,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="reportType" className="text-sm font-medium">
+          <label htmlFor="reportType" className="block text-sm font-medium">
             Report Type
           </label>
           <Input
@@ -364,7 +375,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="labName" className="text-sm font-medium">
+          <label htmlFor="labName" className="block text-sm font-medium">
             Lab Name
           </label>
           <Input
@@ -377,7 +388,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="fileInput" className="text-sm font-medium">
+          <label htmlFor="fileInput" className="block text-sm font-medium">
             Report File
           </label>
           <Input
