@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 
@@ -209,6 +208,8 @@ export const logoutUser = async (): Promise<void> => {
 // Update user data
 export const updateUserData = async (updatedUser: AuthUser): Promise<boolean> => {
   try {
+    console.log("Updating user profile:", updatedUser);
+    
     // Update profile in Supabase
     const { error } = await supabase
       .from('profiles')
@@ -222,6 +223,22 @@ export const updateUserData = async (updatedUser: AuthUser): Promise<boolean> =>
     if (error) {
       console.error("Profile update error:", error);
       return false;
+    }
+    
+    console.log("Profile updated successfully");
+    
+    // Also update auth metadata to keep everything in sync
+    const { error: authError } = await supabase.auth.updateUser({
+      data: {
+        phone: updatedUser.phone,
+        full_name: updatedUser.fullName,
+        center_name: updatedUser.centerName
+      }
+    });
+    
+    if (authError) {
+      console.error("Auth metadata update error:", authError);
+      // Continue anyway as the profile was updated successfully
     }
     
     return true;

@@ -132,7 +132,7 @@ const DiagnosticDashboard = () => {
     setReportForm({ ...reportForm, type: value });
   };
 
-  // Updated patient verification function
+  // Updated patient verification function to focus on profile data
   const verifyPatientPhone = async () => {
     if (!reportForm.patient_phone) {
       console.log("Phone number is empty");
@@ -141,57 +141,53 @@ const DiagnosticDashboard = () => {
     }
     
     try {
-      console.log("Verifying patient phone:", reportForm.patient_phone);
+      const inputPhone = reportForm.patient_phone;
+      console.log("Verifying patient phone:", inputPhone);
       
-      // First, attempt to get the exact profile with this phone number
-      const { data: exactMatch, error: exactMatchError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('phone', reportForm.patient_phone)
-        .eq('user_type', 'patient')
-        .maybeSingle();
+      // Normalize the input phone number (remove any non-digit characters)
+      const normalizedInputPhone = inputPhone.replace(/\D/g, '');
+      console.log("Normalized input phone:", normalizedInputPhone);
       
-      if (exactMatchError) {
-        console.error("Exact match query error:", exactMatchError);
-        setPhoneVerificationStatus("error");
-        return false;
-      }
-      
-      if (exactMatch) {
-        console.log("Found exact patient match:", exactMatch);
-        setPhoneVerificationStatus("verified");
-        return exactMatch.id;
-      }
-      
-      // If no exact match, try to find partial matches (e.g., with different formatting)
-      const { data: allProfiles, error: profilesError } = await supabase
+      // Get all patient profiles to check against
+      const { data: patientProfiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_type', 'patient');
       
       if (profilesError) {
-        console.error("Retrieving all patient profiles error:", profilesError);
+        console.error("Error fetching patient profiles:", profilesError);
         setPhoneVerificationStatus("error");
         return false;
       }
       
-      console.log("Retrieved patient profiles:", allProfiles?.length || 0);
+      console.log("Retrieved patient profiles:", patientProfiles?.length || 0);
       
-      // Normalize phone numbers for comparison (remove spaces, dashes, etc.)
-      const normalizedSearchPhone = reportForm.patient_phone.replace(/\D/g, '');
-      
-      const matchingProfile = allProfiles?.find(profile => {
+      // Check for a match using normalized phone numbers
+      const matchingProfile = patientProfiles?.find(profile => {
+        // Try exact match first
+        if (profile.phone === inputPhone) {
+          console.log("Found exact phone match:", profile);
+          return true;
+        }
+        
+        // If not exact, try normalized match
         const normalizedProfilePhone = profile.phone.replace(/\D/g, '');
-        return normalizedProfilePhone === normalizedSearchPhone;
+        const isMatch = normalizedProfilePhone === normalizedInputPhone;
+        if (isMatch) {
+          console.log("Found normalized phone match:", profile, 
+                     "Normalized from:", profile.phone, 
+                     "To:", normalizedProfilePhone);
+        }
+        return isMatch;
       });
       
       if (matchingProfile) {
-        console.log("Found patient with normalized phone match:", matchingProfile);
+        console.log("Patient profile found:", matchingProfile);
         setPhoneVerificationStatus("verified");
         return matchingProfile.id;
       }
       
-      console.log("No patient found with phone:", reportForm.patient_phone);
+      console.log("No patient found with phone number:", inputPhone);
       setPhoneVerificationStatus("not_found");
       return false;
     } catch (error) {

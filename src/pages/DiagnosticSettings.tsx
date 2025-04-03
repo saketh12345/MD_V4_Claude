@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -41,6 +40,7 @@ const DiagnosticSettings = () => {
         return;
       }
       
+      console.log("Current center data:", currentUser);
       setCenterInfo({
         id: currentUser.id,
         centerName: currentUser.centerName || "",
@@ -83,6 +83,8 @@ const DiagnosticSettings = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    
+    console.log("Updating center profile with:", centerInfo);
 
     // Update user in Supabase
     const updated = await updateUserData({
@@ -97,12 +99,14 @@ const DiagnosticSettings = () => {
         title: "Success",
         description: "Center information updated successfully"
       });
+      console.log("Center profile updated successfully");
     } else {
       toast({
         title: "Error",
         description: "Failed to update center information",
         variant: "destructive"
       });
+      console.error("Failed to update center profile");
     }
     
     setIsLoading(false);

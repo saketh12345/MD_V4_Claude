@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -41,6 +40,7 @@ const PatientSettings = () => {
         return;
       }
       
+      console.log("Current patient data:", currentUser);
       setPersonalInfo({
         id: currentUser.id,
         fullName: currentUser.fullName || "",
@@ -83,6 +83,8 @@ const PatientSettings = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    
+    console.log("Updating patient profile with:", personalInfo);
 
     // Update user in Supabase
     const updated = await updateUserData({
@@ -97,12 +99,14 @@ const PatientSettings = () => {
         title: "Success",
         description: "Profile information updated successfully"
       });
+      console.log("Patient profile updated successfully");
     } else {
       toast({
         title: "Error",
         description: "Failed to update profile information",
         variant: "destructive"
       });
+      console.error("Failed to update patient profile");
     }
     
     setIsLoading(false);
