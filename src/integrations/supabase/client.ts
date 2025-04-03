@@ -17,6 +17,14 @@ export const supabase = createClient<Database>(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false
+    },
+    db: {
+      schema: 'public'
+    },
+    global: {
+      headers: {
+        'x-application-name': 'medivault'
+      }
     }
   }
 );

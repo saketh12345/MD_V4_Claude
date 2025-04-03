@@ -46,6 +46,7 @@ export type Database = {
           name: string
           patient_id: string
           type: string
+          uploaded_by: string | null
         }
         Insert: {
           created_at?: string
@@ -56,6 +57,7 @@ export type Database = {
           name: string
           patient_id: string
           type: string
+          uploaded_by?: string | null
         }
         Update: {
           created_at?: string
@@ -66,8 +68,17 @@ export type Database = {
           name?: string
           patient_id?: string
           type?: string
+          uploaded_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reports_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

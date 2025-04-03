@@ -1,40 +1,26 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Upload, FileText, File, ArrowRight } from "lucide-react";
+import { Upload, FileText } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/utils/authUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
+import ReportUploadForm from "@/components/ReportUploadForm";
+import RecentReportsList from "@/components/RecentReportsList";
 
 type ReportRow = Database['public']['Tables']['reports']['Row'];
-type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 const DiagnosticDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [centerId, setCenterId] = useState<string | null>(null);
   const [centerName, setCenterName] = useState<string>("");
-  const [phoneVerificationStatus, setPhoneVerificationStatus] = useState<string | null>(null);
-  const [patientId, setPatientId] = useState<string | null>(null);
   
-  // Form state
-  const [reportForm, setReportForm] = useState({
-    patient_phone: "",
-    name: "",
-    type: "Blood Test",
-    file: null as File | null
-  });
-
   useEffect(() => {
     const checkAuth = async () => {
       const currentUser = await getCurrentUser();
@@ -114,211 +100,9 @@ const DiagnosticDashboard = () => {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    
-    if (name === 'patient_phone') {
-      // Reset verification status when phone changes
-      setPhoneVerificationStatus(null);
-      setPatientId(null);
-    }
-    
-    setReportForm({ ...reportForm, [name]: value });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setReportForm({ ...reportForm, file: e.target.files[0] });
-    }
-  };
-
-  const handleTypeChange = (value: string) => {
-    setReportForm({ ...reportForm, type: value });
-  };
-
-  // Simplified patient verification method that returns string | false
-  const verifyPatientPhone = async (): Promise<string | false> => {
-    if (!reportForm.patient_phone) {
-      console.log("Phone number is empty");
-      setPhoneVerificationStatus("empty");
-      return false;
-    }
-    
-    try {
-      console.log("Verifying patient phone:", reportForm.patient_phone);
-      
-      // Perform a direct query to find patient with exact phone number
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, phone, full_name')
-        .eq('user_type', 'patient')
-        .eq('phone', reportForm.patient_phone)
-        .maybeSingle();
-      
-      if (error) {
-        console.error("Error in patient verification query:", error);
-        setPhoneVerificationStatus("error");
-        return false;
-      }
-      
-      if (data) {
-        console.log("Patient found with exact phone match:", data);
-        setPhoneVerificationStatus("verified");
-        setPatientId(data.id);
-        return data.id;
-      }
-      
-      // If no exact match, try with a simplified match
-      console.log("No exact match, trying with simplified phone number...");
-      const simplifiedPhone = reportForm.patient_phone.replace(/\D/g, '');
-      
-      const { data: allPatients, error: patientsError } = await supabase
-        .from('profiles')
-        .select('id, phone, full_name')
-        .eq('user_type', 'patient');
-      
-      if (patientsError) {
-        console.error("Error fetching all patients:", patientsError);
-        setPhoneVerificationStatus("error");
-        return false;
-      }
-      
-      console.log(`Searching among ${allPatients?.length || 0} patients for simplified phone: ${simplifiedPhone}`);
-      
-      // Find patient with matching simplified phone
-      const matchedPatient = allPatients?.find(patient => {
-        const patientSimplifiedPhone = patient.phone.replace(/\D/g, '');
-        console.log(`Comparing patient phone: ${patient.phone} (${patientSimplifiedPhone}) with search: ${simplifiedPhone}`);
-        return patientSimplifiedPhone === simplifiedPhone;
-      });
-      
-      if (matchedPatient) {
-        console.log("Patient found with simplified phone match:", matchedPatient);
-        setPhoneVerificationStatus("verified");
-        setPatientId(matchedPatient.id);
-        return matchedPatient.id;
-      }
-      
-      console.log("No patient found with this phone number");
-      setPhoneVerificationStatus("not_found");
-      return false;
-    } catch (error) {
-      console.error("Patient verification error:", error);
-      setPhoneVerificationStatus("error");
-      return false;
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!reportForm.name || !reportForm.type) {
-      toast({
-        title: "Missing Fields",
-        description: "Please fill out all required fields",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setUploading(true);
-    
-    try {
-      // 1. Verify patient phone and get patient ID
-      let patientIdToUse = patientId;
-      
-      if (!patientIdToUse) {
-        const verificationResult = await verifyPatientPhone();
-        if (verificationResult === false) {
-          toast({
-            title: "Invalid Patient",
-            description: phoneVerificationStatus === "not_found" 
-              ? "No patient found with this phone number. Please check the phone number or ask the patient to register." 
-              : "Failed to verify patient. Please check the phone number and try again.",
-            variant: "destructive"
-          });
-          setUploading(false);
-          return;
-        }
-        
-        patientIdToUse = verificationResult;
-      }
-      
-      // 2. Upload file if exists
-      let fileUrl = null;
-      if (reportForm.file) {
-        const fileName = `${Date.now()}-${reportForm.file.name}`;
-        const { data: fileData, error: fileError } = await supabase.storage
-          .from('reports')
-          .upload(fileName, reportForm.file);
-          
-        if (fileError) {
-          console.error("File upload error:", fileError);
-          // Continue without file
-        } else if (fileData) {
-          const { data: urlData } = await supabase.storage
-            .from('reports')
-            .getPublicUrl(fileName);
-            
-          fileUrl = urlData.publicUrl;
-        }
-      }
-      
-      // 3. Create report record
-      const { error: reportError } = await supabase
-        .from('reports')
-        .insert({
-          name: reportForm.name,
-          type: reportForm.type,
-          lab: centerName,
-          patient_id: patientIdToUse,
-          file_url: fileUrl
-        });
-        
-      if (reportError) {
-        throw reportError;
-      }
-      
-      // 4. Reset form and show success message
-      setReportForm({
-        patient_phone: "",
-        name: "",
-        type: "Blood Test",
-        file: null
-      });
-      
-      setPhoneVerificationStatus(null);
-      setPatientId(null);
-      
-      toast({
-        title: "Success",
-        description: "Report uploaded successfully"
-      });
-      
-    } catch (error) {
-      console.error("Report upload error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to upload report. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const getPhoneVerificationMessage = () => {
-    switch (phoneVerificationStatus) {
-      case "verified":
-        return <p className="text-green-600 text-xs mt-1">✓ Patient verified</p>;
-      case "not_found":
-        return <p className="text-red-600 text-xs mt-1">No patient found with this phone number</p>;
-      case "error":
-        return <p className="text-red-600 text-xs mt-1">Error verifying patient</p>;
-      case "empty":
-        return <p className="text-red-600 text-xs mt-1">Phone number is required</p>;
-      default:
-        return null;
+  const handleReportUploaded = () => {
+    if (centerId) {
+      fetchReports(centerId);
     }
   };
 
@@ -336,87 +120,13 @@ const DiagnosticDashboard = () => {
               <h2 className="text-xl font-semibold">Upload New Report</h2>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="patient_phone">Patient Phone Number</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    id="patient_phone" 
-                    name="patient_phone"
-                    placeholder="Enter patient's phone number" 
-                    value={reportForm.patient_phone}
-                    onChange={handleChange}
-                    required
-                    className={`flex-1 ${phoneVerificationStatus === "not_found" || phoneVerificationStatus === "error" || phoneVerificationStatus === "empty" 
-                      ? "border-red-500" 
-                      : phoneVerificationStatus === "verified" 
-                        ? "border-green-500" 
-                        : ""}`}
-                  />
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={verifyPatientPhone}
-                    disabled={!reportForm.patient_phone}
-                  >
-                    Verify
-                  </Button>
-                </div>
-                {getPhoneVerificationMessage()}
-              </div>
-              
-              <div>
-                <Label htmlFor="name">Report Name</Label>
-                <Input 
-                  id="name" 
-                  name="name" 
-                  placeholder="e.g. Complete Blood Count" 
-                  value={reportForm.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="type">Report Type</Label>
-                <Select 
-                  value={reportForm.type} 
-                  onValueChange={handleTypeChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Blood Test">Blood Test</SelectItem>
-                    <SelectItem value="Urine Test">Urine Test</SelectItem>
-                    <SelectItem value="X-Ray">X-Ray</SelectItem>
-                    <SelectItem value="MRI">MRI</SelectItem>
-                    <SelectItem value="CT Scan">CT Scan</SelectItem>
-                    <SelectItem value="Ultrasound">Ultrasound</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="file">Report File (Optional)</Label>
-                <Input 
-                  id="file" 
-                  type="file" 
-                  onChange={handleFileChange}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                />
-                <p className="text-xs text-gray-500 mt-1">Upload PDF or image files (max 10MB)</p>
-              </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={uploading || phoneVerificationStatus !== "verified"}
-              >
-                {uploading ? "Uploading..." : "Upload Report"}
-              </Button>
-            </form>
+            {centerId && (
+              <ReportUploadForm 
+                centerName={centerName}
+                centerId={centerId}
+                onSuccess={handleReportUploaded}
+              />
+            )}
           </CardContent>
         </Card>
         
@@ -428,54 +138,10 @@ const DiagnosticDashboard = () => {
               <h2 className="text-xl font-semibold">Recent Uploads</h2>
             </div>
             
-            {loading ? (
-              <div className="text-center py-8">Loading reports...</div>
-            ) : reports.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No reports uploaded yet. Your uploaded reports will appear here.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {reports.slice(0, 5).map((report) => (
-                  <div key={report.id} className="flex items-center p-3 border rounded-lg">
-                    <div className="p-2 bg-blue-50 rounded mr-3">
-                      <File className="h-5 w-5 text-blue-500" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{report.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(report.created_at).toLocaleDateString()} • {report.type}
-                      </p>
-                    </div>
-                    {report.file_url && (
-                      <a 
-                        href={report.file_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        <ArrowRight className="h-5 w-5" />
-                      </a>
-                    )}
-                  </div>
-                ))}
-                
-                {reports.length > 5 && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full mt-4"
-                    onClick={() => {
-                      toast({
-                        title: "View All Reports",
-                        description: "This feature is coming soon"
-                      });
-                    }}
-                  >
-                    View All Reports
-                  </Button>
-                )}
-              </div>
-            )}
+            <RecentReportsList 
+              reports={reports}
+              loading={loading}
+            />
           </CardContent>
         </Card>
       </div>
