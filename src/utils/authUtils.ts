@@ -39,6 +39,7 @@ export const registerUser = async (
     });
     
     if (authError) {
+      console.error("Auth error during signup:", authError);
       return { 
         success: false, 
         message: authError.message 
@@ -94,6 +95,7 @@ export const loginUser = async (
     });
     
     if (error) {
+      console.error("Login error:", error);
       return { 
         success: false, 
         message: error.message 
@@ -115,6 +117,7 @@ export const loginUser = async (
       .single();
     
     if (profileError || !profile) {
+      console.error("Profile fetch error:", profileError);
       return { 
         success: false, 
         message: 'Error retrieving user profile' 
