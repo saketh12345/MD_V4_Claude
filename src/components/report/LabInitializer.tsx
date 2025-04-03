@@ -2,18 +2,10 @@
 import { useEffect } from "react";
 import { useReportForm } from "@/contexts/ReportFormContext";
 import { supabase } from "@/integrations/supabase/client";
+import { FindOrCreateLabParams, LabResponse } from "@/types/supabase-rpc";
 
 interface LabInitializerProps {
   centerName: string;
-}
-
-interface LabResponse {
-  id: string;
-}
-
-// Define parameter type for find_or_create_lab RPC function
-interface FindOrCreateLabParams {
-  lab_name: string;
 }
 
 const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
@@ -24,10 +16,10 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
     const findOrCreateLab = async () => {
       try {
         // Cast parameter object to the proper type
-        const params = { lab_name: centerName } as FindOrCreateLabParams;
+        const params: FindOrCreateLabParams = { lab_name: centerName };
         
         const { data, error } = await supabase
-          .rpc('find_or_create_lab', params)
+          .rpc<LabResponse>('find_or_create_lab', params)
           .single();
         
         if (error) {
@@ -36,8 +28,7 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
         }
         
         if (data) {
-          const labData = data as unknown as LabResponse;
-          setLabId(labData.id);
+          setLabId(data.id);
         }
       } catch (err) {
         console.error("Lab creation error:", err);

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,25 +5,16 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import PatientRegistration from "./PatientRegistration";
+import { GetPatientByPhoneParams, PatientResponse } from "@/types/supabase-rpc";
 
 interface PatientLookupProps {
   onPatientFound: (id: string, name: string | null) => void;
 }
 
-interface PatientData {
-  id: string;
-  name: string;
-}
-
-// Define interface for get_patient_by_phone RPC function params
-interface GetPatientByPhoneParams {
-  phone: string;
-}
-
 const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
   const { toast } = useToast();
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [patient, setPatient] = useState<PatientData | null>(null);
+  const [patient, setPatient] = useState<{ id: string; name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
 
@@ -34,11 +24,11 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
     setShowRegistration(false);
     
     try {
-      // Cast the parameter object to the proper type
-      const params = { phone: phoneNumber } as GetPatientByPhoneParams;
+      // Cast parameter object to the proper type
+      const params: GetPatientByPhoneParams = { phone: phoneNumber };
       
       const { data, error } = await supabase
-        .rpc('get_patient_by_phone', params)
+        .rpc<PatientResponse>('get_patient_by_phone', params)
         .maybeSingle();
         
       if (error) {
@@ -46,10 +36,8 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
       }
       
       if (data) {
-        // Type assertion for the response data
-        const patientData = data as unknown as PatientData;
-        setPatient({ id: patientData.id, name: patientData.name });
-        onPatientFound(patientData.id, patientData.name);
+        setPatient({ id: data.id, name: data.name });
+        onPatientFound(data.id, data.name);
       } else {
         // No patient found, show registration form
         setShowRegistration(true);

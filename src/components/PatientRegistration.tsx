@@ -1,26 +1,14 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { InsertPatientParams, PatientResponse } from "@/types/supabase-rpc";
 
 interface PatientRegistrationProps {
   onSuccess: (id: string, name: string) => void;
   phoneNumber: string;
-}
-
-interface PatientResponse {
-  id: string;
-  name: string;
-}
-
-// Define parameter type for insert_patient RPC function
-interface InsertPatientParams {
-  p_name: string;
-  p_phone: string;
-  p_email: string | null;
 }
 
 const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProps) => {
@@ -45,14 +33,14 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
     
     try {
       // Cast parameter object to the proper type
-      const params = {
+      const params: InsertPatientParams = {
         p_name: name,
         p_phone: phoneNumber,
         p_email: email || null
-      } as InsertPatientParams;
+      };
       
       const { data, error } = await supabase
-        .rpc('insert_patient', params)
+        .rpc<PatientResponse>('insert_patient', params)
         .single();
         
       if (error) {
@@ -64,10 +52,8 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
         description: "Patient registered successfully"
       });
       
-      // Type assertion for the response data
       if (data) {
-        const patientData = data as unknown as PatientResponse;
-        onSuccess(patientData.id, patientData.name);
+        onSuccess(data.id, data.name);
       }
     } catch (error) {
       console.error("Patient registration error:", error);

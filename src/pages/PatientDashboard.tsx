@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, Download, Share2, FileText } from "lucide-react";
@@ -9,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/utils/authUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { getReports } from "@/utils/reportUtils";
+import { GetPatientByPhoneParams, PatientResponse } from "@/types/supabase-rpc";
 
 interface PatientData {
   id: string;
@@ -22,11 +22,6 @@ interface Report {
   lab: string;
   type: string;
   file_url: string | null;
-}
-
-// Define parameter type for get_patient_by_phone RPC function
-interface GetPatientByPhoneParams {
-  phone: string;
 }
 
 const PatientDashboard = () => {
@@ -63,10 +58,10 @@ const PatientDashboard = () => {
       // Try to find the patient record via a custom RPC
       try {
         // Cast parameter object to the proper type
-        const params = { phone: currentUser.phone } as GetPatientByPhoneParams;
+        const params: GetPatientByPhoneParams = { phone: currentUser.phone };
         
         const { data: patientData, error: patientError } = await supabase
-          .rpc('get_patient_by_phone', params)
+          .rpc<PatientResponse>('get_patient_by_phone', params)
           .maybeSingle();
           
         if (patientError) {
@@ -80,10 +75,8 @@ const PatientDashboard = () => {
         }
         
         if (patientData) {
-          // TypeScript needs the explicit cast here
-          const patient = patientData as unknown as PatientData;
-          setPatientId(patient.id);
-          fetchReports(patient.id);
+          setPatientId(patientData.id);
+          fetchReports(patientData.id);
         } else {
           // No patient record found for this user
           toast({

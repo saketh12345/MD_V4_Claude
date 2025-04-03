@@ -1,6 +1,8 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { InsertReportParams } from "@/types/supabase-rpc";
 
 interface ReportData {
   name: string;
@@ -9,16 +11,6 @@ interface ReportData {
   labId: string;
   centerName: string;
   file: File | null;
-}
-
-// Define parameter type for the insert_report RPC function
-interface InsertReportParams {
-  r_name: string;
-  r_type: string;
-  r_lab: string;
-  r_patient_id: string;
-  r_file_url: string | null;
-  r_uploaded_by: string;
 }
 
 export const useReportUpload = (onSuccess: () => void) => {
@@ -61,14 +53,14 @@ export const useReportUpload = (onSuccess: () => void) => {
       }
       
       // Cast parameter object to the proper type
-      const params = {
+      const params: InsertReportParams = {
         r_name: name,
         r_type: type,
         r_lab: centerName,
         r_patient_id: patientId,
         r_file_url: fileUrl,
         r_uploaded_by: labId
-      } as InsertReportParams;
+      };
       
       const { error: reportError } = await supabase
         .rpc('insert_report', params);
