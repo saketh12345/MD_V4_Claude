@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, FileText, File, ArrowRight } from "lucide-react";
@@ -135,8 +136,8 @@ const DiagnosticDashboard = () => {
     setReportForm({ ...reportForm, type: value });
   };
 
-  // Simplified patient verification method
-  const verifyPatientPhone = async () => {
+  // Simplified patient verification method that returns string | false
+  const verifyPatientPhone = async (): Promise<string | false> => {
     if (!reportForm.patient_phone) {
       console.log("Phone number is empty");
       setPhoneVerificationStatus("empty");
@@ -227,19 +228,20 @@ const DiagnosticDashboard = () => {
       let patientIdToUse = patientId;
       
       if (!patientIdToUse) {
-        patientIdToUse = await verifyPatientPhone() as string | false;
-      }
-      
-      if (!patientIdToUse) {
-        toast({
-          title: "Invalid Patient",
-          description: phoneVerificationStatus === "not_found" 
-            ? "No patient found with this phone number. Please check the phone number or ask the patient to register." 
-            : "Failed to verify patient. Please check the phone number and try again.",
-          variant: "destructive"
-        });
-        setUploading(false);
-        return;
+        const verificationResult = await verifyPatientPhone();
+        if (verificationResult === false) {
+          toast({
+            title: "Invalid Patient",
+            description: phoneVerificationStatus === "not_found" 
+              ? "No patient found with this phone number. Please check the phone number or ask the patient to register." 
+              : "Failed to verify patient. Please check the phone number and try again.",
+            variant: "destructive"
+          });
+          setUploading(false);
+          return;
+        }
+        
+        patientIdToUse = verificationResult;
       }
       
       // 2. Upload file if exists
@@ -269,7 +271,7 @@ const DiagnosticDashboard = () => {
           name: reportForm.name,
           type: reportForm.type,
           lab: centerName,
-          patient_id: patientIdToUse as string,
+          patient_id: patientIdToUse,
           file_url: fileUrl
         });
         
