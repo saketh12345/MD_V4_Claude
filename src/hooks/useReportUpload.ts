@@ -51,7 +51,7 @@ export const useReportUpload = (onSuccess: () => void) => {
         }
       }
       
-      // Create report record using RPC
+      // Create report record using RPC with type assertion
       const { error: reportError } = await supabase
         .rpc('insert_report', {
           r_name: name,
@@ -60,7 +60,7 @@ export const useReportUpload = (onSuccess: () => void) => {
           r_patient_id: patientId,
           r_file_url: fileUrl,
           r_uploaded_by: labId
-        });
+        } as any);
         
       if (reportError) {
         throw reportError;

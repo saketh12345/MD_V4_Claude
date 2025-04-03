@@ -18,9 +18,9 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
     // Find or create the lab entry for this diagnostic center
     const findOrCreateLab = async () => {
       try {
-        // Use RPC for type-safe database operations
+        // Use RPC for type-safe database operations with type assertion
         const { data, error } = await supabase
-          .rpc('find_or_create_lab', { lab_name: centerName })
+          .rpc('find_or_create_lab', { lab_name: centerName } as any)
           .single();
         
         if (error) {

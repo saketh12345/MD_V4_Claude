@@ -14,6 +14,10 @@ interface ReportUploadFormProps {
   onSuccess: () => void;
 }
 
+interface LabResponse {
+  id: string;
+}
+
 const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormProps) => {
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
@@ -31,9 +35,9 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
     // Find or create the lab entry for this diagnostic center
     const findOrCreateLab = async () => {
       try {
-        // Use RPC for type-safe database operations
+        // Use RPC for type-safe database operations with type assertion
         const { data, error } = await supabase
-          .rpc('find_or_create_lab', { lab_name: centerName })
+          .rpc('find_or_create_lab', { lab_name: centerName } as any)
           .single();
         
         if (error) {
@@ -42,7 +46,8 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
         }
         
         if (data) {
-          setLabId(data.id);
+          const labData = data as unknown as LabResponse;
+          setLabId(labData.id);
         }
       } catch (err) {
         console.error("Lab creation error:", err);
@@ -127,7 +132,7 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
         }
       }
       
-      // Create report record using RPC to handle type mismatch
+      // Create report record using RPC with type assertion
       const { error: reportError } = await supabase
         .rpc('insert_report', {
           r_name: reportForm.name,
@@ -136,7 +141,7 @@ const ReportUploadForm = ({ centerName, centerId, onSuccess }: ReportUploadFormP
           r_patient_id: patientId,
           r_file_url: fileUrl,
           r_uploaded_by: labId
-        });
+        } as any);
         
       if (reportError) {
         throw reportError;

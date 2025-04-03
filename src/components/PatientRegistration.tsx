@@ -37,13 +37,13 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
     setIsSubmitting(true);
     
     try {
-      // Create patient record using RPC
+      // Create patient record using RPC with type assertion
       const { data, error } = await supabase
         .rpc('insert_patient', {
           p_name: name,
           p_phone: phoneNumber,
           p_email: email || null
-        })
+        } as any)
         .single();
         
       if (error) {
