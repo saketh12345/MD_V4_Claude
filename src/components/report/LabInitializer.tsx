@@ -16,9 +16,9 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
     const findOrCreateLab = async () => {
       try {
         // Create parameter object
-        const params = { lab_name: centerName };
+        const params: FindOrCreateLabParams = { lab_name: centerName };
         
-        // Fix typing by using 'as any' for the parameters
+        // Use as any for the RPC call
         const { data, error } = await supabase
           .rpc('find_or_create_lab', params as any)
           .single();

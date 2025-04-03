@@ -34,13 +34,13 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
     
     try {
       // Create parameter object
-      const params = {
+      const params: InsertPatientParams = {
         p_name: name,
         p_phone: phoneNumber,
         p_email: email || null
       };
       
-      // Fix typing by using 'as any' for the parameters
+      // Use as any for the RPC call
       const { data, error } = await supabase
         .rpc('insert_patient', params as any)
         .single();

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +17,7 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
   const [patient, setPatient] = useState<{ id: string; name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
-
+  
   const lookupPatient = async (phoneNumber: string) => {
     setIsLoading(true);
     setPatient(null);
@@ -26,9 +25,9 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
     
     try {
       // Create parameter object
-      const params = { phone: phoneNumber };
+      const params: GetPatientByPhoneParams = { phone: phoneNumber };
       
-      // Fix typing by using 'as any' for the parameters
+      // Use as any for the RPC call
       const { data, error } = await supabase
         .rpc('get_patient_by_phone', params as any)
         .maybeSingle();

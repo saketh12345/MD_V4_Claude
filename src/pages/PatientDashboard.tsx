@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText } from "lucide-react";
@@ -53,9 +54,9 @@ const PatientDashboard = () => {
     
       if (currentUser && currentUser.phone) {
         // Create parameter object
-        const params = { phone: currentUser.phone };
+        const params: GetPatientByPhoneParams = { phone: currentUser.phone };
         
-        // Fix typing by using 'as any' for the parameters
+        // Use as any for the RPC call
         const { data: patientData, error: patientError } = await supabase
           .rpc('get_patient_by_phone', params as any)
           .maybeSingle();

@@ -53,7 +53,7 @@ export const useReportUpload = (onSuccess: () => void) => {
       }
       
       // Cast parameter object to the proper type
-      const params = {
+      const params: InsertReportParams = {
         r_name: name,
         r_type: type,
         r_lab: centerName,
@@ -62,7 +62,7 @@ export const useReportUpload = (onSuccess: () => void) => {
         r_uploaded_by: labId
       };
       
-      // Fix typing by using 'as any' for the parameters
+      // Use as any for the RPC call
       const { error: reportError } = await supabase
         .rpc('insert_report', params as any);
         
