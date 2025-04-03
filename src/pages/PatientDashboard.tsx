@@ -57,7 +57,7 @@ const PatientDashboard = () => {
       // Try to find the patient record via a custom RPC
       try {
         const { data: patientData, error: patientError } = await supabase
-          .rpc('get_patient_by_phone', { phone: currentUser.phone } as any)
+          .rpc('get_patient_by_phone', { phone: currentUser.phone } as {phone: string})
           .maybeSingle();
           
         if (patientError) {

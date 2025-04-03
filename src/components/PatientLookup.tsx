@@ -38,9 +38,9 @@ const PatientLookup = ({ onPatientFound }: PatientLookupProps) => {
     setShowRegistration(false);
     
     try {
-      // Use RPC function to get patient by phone with type assertion
+      // Use RPC function to get patient by phone with explicit type assertion for params
       const { data, error } = await supabase
-        .rpc('get_patient_by_phone', { phone: phoneNumber.trim() } as any)
+        .rpc('get_patient_by_phone', { phone: phoneNumber.trim() } as {phone: string})
         .maybeSingle();
       
       if (error) {
