@@ -2,14 +2,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/utils/authUtils";
+import ReportUpload from "@/components/ReportUpload";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import PatientUploadPanel from "@/components/PatientUploadPanel";
 
 const DiagnosticDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [centerName, setCenterName] = useState<string>("");
+  const [refreshReports, setRefreshReports] = useState<number>(0);
   
   useEffect(() => {
     const checkAuth = async () => {
@@ -38,21 +42,48 @@ const DiagnosticDashboard = () => {
     checkAuth();
   }, [navigate, toast]);
 
+  const handleUploadSuccess = () => {
+    setRefreshReports(prev => prev + 1);
+    toast({
+      title: "Upload Successful",
+      description: "Patient report has been uploaded successfully",
+    });
+  };
+
   return (
     <DashboardLayout 
       title={`Welcome, ${centerName}`}
       subtitle="Diagnostic Center Dashboard"
     >
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="bg-white shadow-sm">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Diagnostic Center Dashboard</h2>
-            <p className="text-gray-600">
-              This simplified application provides basic user authentication and profile management.
-              All file upload and patient lookup features have been removed.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6">
+        <Tabs defaultValue="upload" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="upload">Upload Report</TabsTrigger>
+            <TabsTrigger value="patients">Patient Management</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="upload" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Upload Patient Report</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ReportUpload onUploadSuccess={handleUploadSuccess} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="patients" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Patient Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PatientUploadPanel />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
