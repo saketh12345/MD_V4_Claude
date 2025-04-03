@@ -43,7 +43,7 @@ const App = () => (
           <Route path="/patient-settings" element={<PatientSettings />} />
           <Route path="/diagnostic-dashboard" element={<DiagnosticDashboard />} />
           <Route path="/diagnostic-settings" element={<DiagnosticSettings />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          {/* Fallback route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

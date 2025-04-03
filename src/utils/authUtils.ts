@@ -25,7 +25,6 @@ export const registerUser = async (
     console.log("Registering new user with phone:", phone);
     // Save phone number in original format for user-friendly display
     const originalPhone = phone.trim();
-    // For database operations, use the original format
     
     // Register the user with Supabase
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -192,7 +191,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
-      .single();
+      .maybeSingle();
     
     if (error || !profile) return null;
     

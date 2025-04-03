@@ -1,4 +1,3 @@
-
 // This file contains type definitions for Supabase RPC functions
 
 // RPC function parameter types
