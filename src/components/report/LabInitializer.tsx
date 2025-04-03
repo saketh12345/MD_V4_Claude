@@ -25,7 +25,7 @@ const LabInitializer: React.FC<LabInitializerProps> = ({ centerName }) => {
       try {
         // Use type assertion to fix the "never" type error
         const { data, error } = await supabase
-          .rpc('find_or_create_lab', { lab_name: centerName } as any)
+          .rpc('find_or_create_lab', { lab_name: centerName } as FindOrCreateLabParams)
           .single();
         
         if (error) {

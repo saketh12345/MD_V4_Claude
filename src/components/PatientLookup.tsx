@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,9 +34,9 @@ const PatientLookup: React.FC<PatientLookupProps> = ({ onPatientFound }) => {
     setShowRegistration(false);
     
     try {
-      // Use type assertion for parameters to fix the "never" type error
+      // Use type assertion to fix the "never" type error
       const { data, error } = await supabase
-        .rpc('get_patient_by_phone', { phone: phoneNumber } as any)
+        .rpc('get_patient_by_phone', { phone: phoneNumber } as GetPatientByPhoneParams)
         .maybeSingle();
         
       if (error) {

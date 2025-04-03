@@ -70,7 +70,7 @@ export const useReportUpload = (onSuccess: () => void) => {
           r_patient_id: patientId,
           r_file_url: fileUrl,
           r_uploaded_by: labId
-        } as any);
+        } as InsertReportParams);
         
       if (reportError) {
         throw reportError;

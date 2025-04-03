@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +50,7 @@ const PatientRegistration = ({ onSuccess, phoneNumber }: PatientRegistrationProp
           p_name: name,
           p_phone: phoneNumber,
           p_email: email || null
-        } as any)
+        } as InsertPatientParams)
         .single();
         
       if (error) {

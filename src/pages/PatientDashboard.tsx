@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from "@/utils/authUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { getReports } from "@/utils/reportUtils";
 
 interface PatientData {
   id: string;
@@ -62,7 +63,7 @@ const PatientDashboard = () => {
       try {
         // Use type assertion to fix the "never" type error
         const { data: patientData, error: patientError } = await supabase
-          .rpc('get_patient_by_phone', { phone: currentUser.phone } as any)
+          .rpc('get_patient_by_phone', { phone: currentUser.phone } as GetPatientByPhoneParams)
           .maybeSingle();
           
         if (patientError) {
@@ -126,18 +127,10 @@ const PatientDashboard = () => {
   const fetchReports = async (patientId: string) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('reports')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        throw error;
-      }
+      const reportData = await getReports(patientId);
       
-      if (data) {
-        const formattedReports = data.map((report) => ({
+      if (reportData) {
+        const formattedReports = reportData.map((report) => ({
           id: report.id,
           name: report.name,
           date: new Date(report.created_at).toLocaleDateString(),
