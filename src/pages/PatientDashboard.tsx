@@ -107,10 +107,18 @@ const PatientDashboard = () => {
     }
 
     try {
-      const { data, error } = await supabase.storage.from('reports').createSignedUrl(fileUrl, 60);
+      // Create a signed URL with longer expiration (60 seconds)
+      const { data, error } = await supabase.storage
+        .from('reports')
+        .createSignedUrl(fileUrl, 60);
       
       if (error) {
-        throw error;
+        console.error("Error getting signed URL:", error);
+        throw new Error("Could not generate access link for this report");
+      }
+      
+      if (!data || !data.signedUrl) {
+        throw new Error("No valid URL generated for this report");
       }
       
       // Open the signed URL in a new tab
@@ -119,7 +127,7 @@ const PatientDashboard = () => {
       console.error('Error getting report file:', error);
       toast({
         title: "Error",
-        description: "Could not retrieve the report file",
+        description: error instanceof Error ? error.message : "Could not retrieve the report file",
         variant: "destructive"
       });
     }

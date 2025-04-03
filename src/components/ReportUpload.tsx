@@ -121,12 +121,19 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
       });
 
       // Upload file to Supabase storage
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from("reports")
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
+      // Get the public URL for the file
+      const { data: publicUrlData } = supabase.storage
+        .from("reports")
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData?.publicUrl;
+      
       const currentUser = await getCurrentUser();
 
       if (!currentUser) {
@@ -139,7 +146,7 @@ const ReportUpload = ({ onUploadSuccess }: ReportUploadProps) => {
         name: reportName,
         type: reportType,
         lab: labName,
-        file_url: filePath,
+        file_url: filePath, // Store the path, not the full URL
         uploaded_by: currentUser.id,
         date: new Date().toISOString().split("T")[0],
       });
